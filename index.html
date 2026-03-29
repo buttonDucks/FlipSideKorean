@@ -2597,6 +2597,8 @@ function showProgressChart(type, el) {
     `;
   }
 }
+
+function saveApiKey() {
   db.settings.apiKey = document.getElementById('api-key-input').value.trim();
   saveDB();
   const status = document.getElementById('api-key-status');

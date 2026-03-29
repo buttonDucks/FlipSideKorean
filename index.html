@@ -411,7 +411,7 @@ select.input{appearance:none;-webkit-appearance:none;}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                   <div class="dots-row" id="card-dots-back"></div>
-                  <div style="font-size:12px;color:var(--text3);">tap to flip back</div>
+                  <div style="font-size:12px;color:var(--text3);">tap to flip</div>
                 </div>
               </div>
             </div>
@@ -443,7 +443,7 @@ select.input{appearance:none;-webkit-appearance:none;}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2>Decks</h2>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary btn-sm" onclick="openCreateFolder()">+ Folder</button>
+          <button class="btn btn-secondary btn-sm" onclick="openCreateFolder()">+ Tag</button>
           <button class="btn btn-primary btn-sm" onclick="openCreateDeck()">+ Deck</button>
         </div>
       </div>
@@ -570,28 +570,9 @@ select.input{appearance:none;-webkit-appearance:none;}
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:12px;">
-        <div class="section-label" style="margin-bottom:12px;">AI Features (Anthropic API)</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6;">Required for AI deck generation and image generation. Your key is stored locally on your device only.</div>
-        <div class="api-key-wrap">
-          <input class="input" type="password" id="api-key-input" placeholder="sk-ant-..." oninput="saveApiKey()">
-          <button class="api-key-toggle" onclick="toggleApiKeyVisibility()">👁</button>
-        </div>
-        <div style="font-size:12px;color:var(--text3);margin-top:8px;" id="api-key-status"></div>
-      </div>
-
-      <div class="card" style="margin-bottom:12px;">
-        <div class="section-label" style="margin-bottom:8px;">Data</div>
-        <button class="btn btn-secondary btn-full" onclick="exportData()" style="margin-bottom:8px;">Export all data (JSON)</button>
-        <button class="btn btn-secondary btn-full" onclick="document.getElementById('import-data-input').click()">Import data (JSON)</button>
-        <input type="file" id="import-data-input" accept=".json" style="display:none;" onchange="importData(event)">
-      </div>
-
       <div class="card">
         <div class="settings-row" style="border:none;">
-          <div>
-            <div class="settings-label">App version</div>
-          </div>
+          <div><div class="settings-label">App version</div></div>
           <div class="settings-val">1.0.0</div>
         </div>
       </div>
@@ -601,19 +582,19 @@ select.input{appearance:none;-webkit-appearance:none;}
 
   <!-- BOTTOM NAV -->
   <nav id="nav">
-    <button class="nav-btn active" id="nav-home" onclick="showScreen('home')">
+    <button class="nav-btn active" id="nav-home" onclick="navTo('home')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <span>Home</span>
     </button>
-    <button class="nav-btn" id="nav-decks" onclick="showScreen('decks')">
+    <button class="nav-btn" id="nav-decks" onclick="navTo('decks')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
       <span>Decks</span>
     </button>
-    <button class="nav-btn" id="nav-words" onclick="showScreen('words')">
+    <button class="nav-btn" id="nav-words" onclick="navTo('words')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
       <span>Words</span>
     </button>
-    <button class="nav-btn" id="nav-streak" onclick="showScreen('streak')">
+    <button class="nav-btn" id="nav-streak" onclick="navTo('streak')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       <span>Streak</span>
     </button>
@@ -628,46 +609,14 @@ select.input{appearance:none;-webkit-appearance:none;}
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:16px;">New Deck</h2>
     <div class="tab-pills" id="create-deck-tabs">
-      <div class="tab-pill active" onclick="setCreateMode('ai',this)">✨ AI Generate</div>
+      <div class="tab-pill active" onclick="setCreateMode('import',this)">📥 Anki / CSV</div>
       <div class="tab-pill" onclick="setCreateMode('manual',this)">✏️ Manual</div>
-      <div class="tab-pill" onclick="setCreateMode('import',this)">📥 Import CSV</div>
-    </div>
-
-    <!-- AI mode -->
-    <div id="create-ai">
-      <input class="input" id="ai-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
-      <input class="input" id="ai-topic" placeholder="Topic (e.g. Food & cooking, Travel phrases)" style="margin-bottom:8px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <select class="input" id="ai-topik">
-          <option value="">TOPIK level (optional)</option>
-          <option value="1">TOPIK 1 — Beginner</option>
-          <option value="2">TOPIK 2 — Elementary</option>
-          <option value="3">TOPIK 3 — Intermediate</option>
-          <option value="4">TOPIK 4 — Upper-Int.</option>
-          <option value="5">TOPIK 5 — Advanced</option>
-          <option value="6">TOPIK 6 — Mastery</option>
-        </select>
-        <select class="input" id="ai-count">
-          <option value="10">10 words</option>
-          <option value="20" selected>20 words</option>
-          <option value="30">30 words</option>
-          <option value="50">50 words</option>
-          <option value="100">100 words</option>
-          <option value="150">150 words ⚠ may vary</option>
-          <option value="200">200 words ⚠ may vary</option>
-        </select>
-      </div>
-      <div id="ai-tags-input" style="margin-bottom:12px;">
-        <input class="input" id="ai-tags" placeholder="Tags (comma separated: food, travel)" style="margin-bottom:0;">
-      </div>
-      <button class="btn btn-primary btn-full" onclick="generateAIDeck()" id="ai-generate-btn">✨ Generate deck</button>
-      <div id="ai-generate-result" style="margin-top:12px;display:none;"></div>
     </div>
 
     <!-- Manual mode -->
     <div id="create-manual" style="display:none;">
       <input class="input" id="manual-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
-      <input class="input" id="manual-tags" placeholder="Tags (comma separated)" style="margin-bottom:8px;">
+      <div id="manual-tag-selector" style="margin-bottom:8px;"></div>
       <select class="input" id="manual-topik" style="margin-bottom:12px;">
         <option value="">TOPIK level (optional)</option>
         <option value="1">TOPIK 1 — Beginner</option>
@@ -683,9 +632,9 @@ select.input{appearance:none;-webkit-appearance:none;}
     </div>
 
     <!-- Import mode -->
-    <div id="create-import" style="display:none;">
+    <div id="create-import">
       <input class="input" id="import-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
-      <input class="input" id="import-tags" placeholder="Tags (comma separated)" style="margin-bottom:8px;">
+      <div id="import-tag-selector" style="margin-bottom:8px;"></div>
       <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;margin-bottom:12px;">
         <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Anki (.apkg) or CSV file</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">CSV format: Korean, English, Example Korean, Example English</div>
@@ -697,6 +646,34 @@ select.input{appearance:none;-webkit-appearance:none;}
     </div>
 
     <button class="btn btn-ghost btn-full" onclick="closeModal('modal-create-deck')" style="margin-top:12px;">Cancel</button>
+  </div>
+</div>
+
+<!-- No Decks Modal -->
+<div class="modal-overlay" id="modal-no-decks">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="font-size:32px;margin-bottom:8px;">📚</div>
+      <h2 style="margin-bottom:8px;">No decks yet</h2>
+      <div style="font-size:14px;color:var(--text2);line-height:1.5;">Create or import a deck to start studying.</div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="closeModal('modal-no-decks');showScreen('decks');openCreateDeck();" style="margin-bottom:8px;">Create a deck</button>
+    <button class="btn btn-ghost btn-full" onclick="closeModal('modal-no-decks')">Cancel</button>
+  </div>
+</div>
+
+<!-- Quit Session Modal -->
+<div class="modal-overlay" id="modal-quit-session">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="font-size:32px;margin-bottom:8px;">😔</div>
+      <h2 style="margin-bottom:8px;">Quit session?</h2>
+      <div style="font-size:14px;color:var(--text2);line-height:1.5;">You will not gain any exp from this session.</div>
+    </div>
+    <button class="btn btn-secondary btn-full" onclick="confirmQuitSession()" style="margin-bottom:8px;color:var(--red);border-color:rgba(248,113,113,0.3);">Quit</button>
+    <button class="btn btn-primary btn-full" onclick="closeModal('modal-quit-session')">Continue studying</button>
   </div>
 </div>
 
@@ -759,7 +736,7 @@ select.input{appearance:none;-webkit-appearance:none;}
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:16px;">Edit Deck</h2>
     <input class="input" id="edit-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
-    <input class="input" id="edit-deck-tags" placeholder="Tags (comma separated)" style="margin-bottom:8px;">
+    <div id="edit-deck-tag-selector" style="margin-bottom:8px;"></div>
     <select class="input" id="edit-deck-topik" style="margin-bottom:16px;">
       <option value="">TOPIK level (optional)</option>
       <option value="1">TOPIK 1 — Beginner</option>
@@ -908,6 +885,26 @@ function getWeekHistory() {
     days.push({label: dayNames[d.getDay()], star, isToday});
   }
   return days;
+}
+
+let pendingNavTarget = null;
+
+function navTo(name) {
+  const sessionActive = session && !document.getElementById('session-complete').style.display.includes('block')
+    && document.getElementById('screen-session').classList.contains('active');
+  if(sessionActive) {
+    pendingNavTarget = name;
+    openModal('modal-quit-session');
+    return;
+  }
+  showScreen(name);
+}
+
+function confirmQuitSession() {
+  closeModal('modal-quit-session');
+  session = null;
+  if(pendingNavTarget) { showScreen(pendingNavTarget); pendingNavTarget = null; }
+  else showScreen('home');
 }
 
 // ============================================================
@@ -1071,6 +1068,10 @@ function getSelectedDecks() {
 }
 
 function startSession(type) {
+  if(!db.decks.length) {
+    openModal('modal-no-decks');
+    return;
+  }
   const selectedDecks = getSelectedDecks();
   if(!selectedDecks.length) { showNotif('Select at least one deck first'); return; }
   db.settings.hardMode = document.getElementById('toggle-hard').checked;
@@ -1271,17 +1272,14 @@ function renderDots(elId, filled, max) {
 function revealCard() {
   const flipper = document.getElementById('card-flipper');
   const isFlipped = flipper.classList.contains('flipped');
-  const answersShowing = document.getElementById('answer-btns').style.display === 'grid';
-  if(answersShowing) return; // lock once answer buttons are visible
   if(!isFlipped) {
     flipper.classList.add('flipped');
     setTimeout(() => { document.getElementById('answer-btns').style.display='grid'; }, 300);
-    // Auto-read Korean aloud when flipping to English side (Korean→English mode only)
     if(!session.hardMode && db.settings.autoRead !== false) {
       setTimeout(() => speakKorean(), 100);
     }
-  } else {
-    // Flip back to Korean side (before answering)
+  } else if(document.getElementById('answer-btns').style.display !== 'grid') {
+    // Only flip back if answer buttons aren't showing yet
     flipper.classList.remove('flipped');
   }
 }
@@ -1333,12 +1331,16 @@ function answerCard(correct) {
     recordWrongAnswer(card.id);
   }
 
+  // Update dots immediately so user sees the change before next card
+  renderDots('card-dots', card.dots, maxDots);
+  renderDots('card-dots-back', card.dots, maxDots);
+
   // Brief visual feedback then next card
   setTimeout(()=>{
     document.getElementById('card-flipper').classList.remove('flipped');
     document.getElementById('answer-btns').style.display='none';
     setTimeout(renderSessionCard, 200);
-  }, 400);
+  }, 500);
 }
 
 function updateWordRecord(card, correct) {
@@ -1436,6 +1438,90 @@ let editingCardIdx = null;
 let pendingAIDeck = null;
 let pendingImportCards = [];
 
+// ============================================================
+// TAG SYSTEM
+// ============================================================
+function getAllTags() {
+  const tags = new Set();
+  (db.folders||[]).forEach(f => tags.add(f.name));
+  db.decks.forEach(d => (d.tags||[]).forEach(t => tags.add(t)));
+  return [...tags].sort();
+}
+
+function populateTagDropdowns() {
+  ['manual-tag-selector','import-tag-selector'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) renderTagSelector(id, []);
+  });
+}
+
+function renderTagSelector(containerId, selectedTags) {
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const allTags = getAllTags();
+  const selected = new Set(selectedTags);
+
+  container.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;';
+
+  allTags.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.style.cssText = `padding:5px 12px;border-radius:99px;font-size:12px;border:1px solid;transition:all 0.15s;`;
+    const active = selected.has(tag);
+    btn.style.background = active ? 'var(--accent-dim)' : 'var(--surface2)';
+    btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+    btn.style.color = active ? 'var(--accent2)' : 'var(--text2)';
+    btn.textContent = tag;
+    btn.dataset.tag = tag;
+    btn.dataset.selected = active ? '1' : '0';
+    btn.onclick = (e) => {
+      e.preventDefault();
+      const isNowSelected = btn.dataset.selected !== '1';
+      btn.dataset.selected = isNowSelected ? '1' : '0';
+      btn.style.background = isNowSelected ? 'var(--accent-dim)' : 'var(--surface2)';
+      btn.style.borderColor = isNowSelected ? 'var(--accent)' : 'var(--border)';
+      btn.style.color = isNowSelected ? 'var(--accent2)' : 'var(--text2)';
+    };
+    wrap.appendChild(btn);
+  });
+
+  // + New tag button
+  const newBtn = document.createElement('button');
+  newBtn.style.cssText = 'padding:5px 12px;border-radius:99px;font-size:12px;border:1px dashed var(--border2);color:var(--text3);background:none;';
+  newBtn.textContent = '+ New tag';
+  newBtn.onclick = (e) => {
+    e.preventDefault();
+    const name = prompt('New tag name:');
+    if(!name || !name.trim()) return;
+    const trimmed = name.trim();
+    if(!db.folders) db.folders = [];
+    if(!db.folders.find(f => f.name === trimmed)) {
+      db.folders.push({id: genId(), name: trimmed});
+      saveDB();
+    }
+    renderTagSelector(containerId, getSelectedTags(containerId).concat([trimmed]));
+  };
+  wrap.appendChild(newBtn);
+
+  if(!allTags.length) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px;color:var(--text3);';
+    hint.textContent = 'No tags yet — create one with "+ New tag"';
+    container.appendChild(hint);
+  }
+
+  container.appendChild(wrap);
+}
+
+function getSelectedTags(containerId) {
+  const container = document.getElementById(containerId);
+  if(!container) return [];
+  return [...container.querySelectorAll('button[data-tag]')]
+    .filter(b => b.dataset.selected === '1')
+    .map(b => b.dataset.tag);
+}
+
 function renderDecks() {
   const list = document.getElementById('deck-list');
   list.innerHTML='';
@@ -1508,21 +1594,24 @@ function saveFolder() {
 }
 
 function openCreateDeck() {
-  setCreateMode('ai', document.querySelector('#create-deck-tabs .tab-pill'));
-  document.getElementById('ai-deck-name').value='';
-  document.getElementById('ai-topic').value='';
-  document.getElementById('ai-topik').value='';
-  document.getElementById('ai-tags').value='';
-  document.getElementById('ai-generate-result').style.display='none';
+  setCreateMode('import', document.querySelector('#create-deck-tabs .tab-pill'));
+  document.getElementById('import-deck-name').value='';
+  document.getElementById('import-tags').value='';
+  document.getElementById('csv-preview').style.display='none';
+  document.getElementById('import-save-btn').style.display='none';
+  populateTagDropdowns();
   openModal('modal-create-deck');
 }
 
 function setCreateMode(mode, el) {
-  ['ai','manual','import'].forEach(m=>{
+  ['manual','import'].forEach(m=>{
     document.getElementById('create-'+m).style.display=m===mode?'block':'none';
   });
   document.querySelectorAll('#create-deck-tabs .tab-pill').forEach(p=>p.classList.remove('active'));
   if(el) el.classList.add('active');
+  // Populate tag selectors for whichever mode just became visible
+  if(mode==='manual') renderTagSelector('manual-tag-selector', []);
+  if(mode==='import') renderTagSelector('import-tag-selector', []);
 }
 
 // AI Deck Generation
@@ -1713,7 +1802,7 @@ function saveManualDeck() {
     id: genId(),
     name,
     cards,
-    tags: document.getElementById('manual-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    tags: getSelectedTags('manual-tag-selector'),
     topik: document.getElementById('manual-topik').value,
     source: 'manual',
     icon: '✏️',
@@ -1817,7 +1906,7 @@ function saveImportedDeck() {
     id: genId(),
     name,
     cards: pendingImportCards,
-    tags: document.getElementById('import-tags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    tags: getSelectedTags('import-tag-selector'),
     topik: '',
     source: 'imported',
     icon: '📥',
@@ -1837,8 +1926,9 @@ function openEditDeck(id) {
   const deck = db.decks.find(d=>d.id===id);
   if(!deck) return;
   document.getElementById('edit-deck-name').value=deck.name;
-  document.getElementById('edit-deck-tags').value=(deck.tags||[]).join(', ');
   document.getElementById('edit-deck-topik').value=deck.topik||'';
+  populateTagDropdowns();
+  renderTagSelector('edit-deck-tag-selector', deck.tags||[]);
   renderEditDeckCards(deck);
   openModal('modal-edit-deck');
 }
@@ -1880,7 +1970,7 @@ function saveEditDeck() {
   const deck = db.decks.find(d=>d.id===editingDeckId);
   if(!deck) return;
   deck.name = document.getElementById('edit-deck-name').value.trim()||deck.name;
-  deck.tags = document.getElementById('edit-deck-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  deck.tags = getSelectedTags('edit-deck-tag-selector');
   deck.topik = document.getElementById('edit-deck-topik').value;
   saveDB();
   closeModal('modal-edit-deck');

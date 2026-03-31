@@ -126,6 +126,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
 .dot{width:10px;height:10px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);transition:all 0.25s;}
 .dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 6px var(--accent);}
 .dot.single{width:14px;height:14px;}
+.dot.complete{background:var(--green);border-color:var(--green);box-shadow:0 0 8px var(--green);animation:dotPop 0.35s ease;}
+@keyframes dotPop{0%{transform:scale(1)}50%{transform:scale(1.5)}100%{transform:scale(1)}}
 
 /* WORD STATUS BADGES */
 .badge{display:inline-flex;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:500;}
@@ -373,17 +375,10 @@ select.input{appearance:none;-webkit-appearance:none;}
         </div>
       </div>
 
-      <!-- Session buttons -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
-        <button class="btn btn-secondary" style="flex-direction:column;gap:4px;padding:16px;" onclick="startSession('review')">
-          <span style="font-size:20px;">🔄</span>
-          <span style="font-size:15px;">Review</span>
-          <span style="font-size:11px;color:var(--text3);">Learning + Known</span>
-        </button>
-        <button class="btn btn-primary" style="flex-direction:column;gap:4px;padding:16px;" onclick="startSession('learn')">
-          <span style="font-size:20px;">✨</span>
-          <span style="font-size:15px;">Learn</span>
-          <span style="font-size:11px;color:rgba(255,255,255,0.7);">+ New cards</span>
+      <!-- Session button -->
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-primary btn-full" style="padding:18px;font-size:17px;font-weight:500;" onclick="startSession('learn')">
+          Learn!
         </button>
       </div>
     </div>
@@ -494,6 +489,8 @@ select.input{appearance:none;-webkit-appearance:none;}
         <div id="words-tag-list"></div>
         <!-- Divider if tags exist -->
         <div id="words-tag-divider" style="display:none;height:1px;background:var(--border);margin:8px 0;"></div>
+        <!-- Decks heading -->
+        <div id="words-decks-heading" style="display:none;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Decks</div>
         <!-- Decks -->
         <div id="words-deck-list"></div>
       </div>
@@ -541,10 +538,10 @@ select.input{appearance:none;-webkit-appearance:none;}
       <div class="card" style="margin-bottom:12px;">
         <div class="section-label" style="margin-bottom:10px;">Daily stars</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-bronze">🥉</div><div style="font-size:13px;">Bronze — any study</div></div>
-          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-silver">🥈</div><div style="font-size:13px;">Silver — ~5 min study</div></div>
-          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-gold">🥇</div><div style="font-size:13px;">Gold — ~12 min study</div></div>
-          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-platinum">💎</div><div style="font-size:13px;">Diamond — ~25 min study (earns freeze)</div></div>
+          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-bronze">🥉</div><div style="font-size:13px;">Bronze — any exp</div></div>
+          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-silver">🥈</div><div style="font-size:13px;">Silver — 600 exp</div></div>
+          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-gold">🥇</div><div style="font-size:13px;">Gold — 1,500 exp</div></div>
+          <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-platinum">💎</div><div style="font-size:13px;">Diamond — 3,000 exp (earns freeze)</div></div>
           <div style="display:flex;align-items:center;gap:10px;"><div class="star-icon star-ice">🧊</div><div style="font-size:13px;">Ice — freeze used</div></div>
         </div>
       </div>
@@ -722,6 +719,31 @@ select.input{appearance:none;-webkit-appearance:none;}
   </div>
 </div>
 
+<!-- Deck Card View Modal -->
+<div class="modal-overlay" id="modal-deck-cards">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 id="deck-cards-title"></h2>
+      <button class="btn btn-secondary btn-sm" id="deck-cards-edit-btn">Edit deck</button>
+    </div>
+    <div id="deck-cards-list"></div>
+    <button class="btn btn-ghost btn-full" onclick="closeModal('modal-deck-cards')" style="margin-top:12px;">Close</button>
+  </div>
+</div>
+
+<!-- Delete Deck Confirmation Modal -->
+<div class="modal-overlay" id="modal-delete-deck" style="align-items:center;">
+  <div class="modal" style="border-radius:var(--radius);max-width:300px;margin:0 auto;padding:20px;">
+    <h2 style="margin-bottom:8px;font-size:16px;">Delete deck?</h2>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:16px;" id="delete-deck-msg"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete-deck')" style="padding:10px;">Cancel</button>
+      <button class="btn btn-secondary" onclick="confirmDeleteDeck()" style="padding:10px;color:var(--red);border-color:rgba(248,113,113,0.3);">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- Create Tag Modal -->
 <div class="modal-overlay" id="modal-create-folder">
   <div class="modal">
@@ -738,24 +760,21 @@ select.input{appearance:none;-webkit-appearance:none;}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 id="edit-card-title" style="margin-bottom:16px;">Edit Card</h2>
-    <div style="position:relative;margin-bottom:8px;">
-      <input class="input korean" id="edit-kr" placeholder="Korean (한국어)" style="font-size:20px;padding-right:90px;" oninput="showEditGenBtn()">
-      <button id="edit-gen-rest-btn" onclick="generateRestOfEditCard()" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;padding:4px 8px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;color:var(--accent2);white-space:nowrap;">✨ Fill</button>
-    </div>
+    <input class="input korean" id="edit-kr" placeholder="Korean (한국어)" style="margin-bottom:8px;font-size:20px;">
     <textarea class="input korean" id="edit-kr-sentence" placeholder="Example sentence in Korean" style="margin-bottom:8px;font-size:16px;"></textarea>
     <input class="input" id="edit-en" placeholder="English translation" style="margin-bottom:8px;">
     <textarea class="input" id="edit-en-sentence" placeholder="Example sentence in English" style="margin-bottom:8px;"></textarea>
     <div style="display:flex;gap:8px;margin-bottom:8px;">
-      <button class="btn btn-secondary btn-sm" onclick="uploadCardImage()">📷 Photo</button>
+      <button class="btn btn-secondary btn-sm" onclick="uploadCardImage()">+ Photo</button>
       <button class="btn btn-secondary btn-sm" id="del-img-btn" onclick="deleteCardImage()" style="display:none;">🗑 Photo</button>
     </div>
     <div id="edit-card-image-preview" style="margin-bottom:8px;display:none;">
       <img id="edit-card-img" style="width:100%;border-radius:var(--radius-sm);max-height:160px;object-fit:cover;" alt="">
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <button class="btn btn-secondary btn-sm" onclick="uploadCardAudio()">🔊 Audio</button>
+      <button class="btn btn-secondary btn-sm" onclick="uploadCardAudio()">+ Audio</button>
       <button class="btn btn-secondary btn-sm" id="del-audio-btn" onclick="deleteCardAudio()" style="display:none;">🗑 Audio</button>
-      <div id="audio-preview" style="display:none;font-size:12px;color:var(--green);align-items:center;gap:4px;display:none;">✓ Audio loaded</div>
+      <div id="audio-preview" style="display:none;font-size:12px;color:var(--green);align-items:center;gap:4px;">✓ Audio loaded</div>
     </div>
     <input type="file" id="card-image-upload" accept="image/*" style="display:none;" onchange="handleCardImageUpload(event)">
     <input type="file" id="card-audio-upload" accept="audio/*" style="display:none;" onchange="handleCardAudioUpload(event)">
@@ -785,18 +804,6 @@ select.input{appearance:none;-webkit-appearance:none;}
     <button class="btn btn-primary btn-full" onclick="saveEditDeck()" style="margin-bottom:8px;">Save changes</button>
     <button class="btn btn-secondary btn-full" style="color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="deleteDeck()">Delete deck</button>
     <button class="btn btn-ghost btn-full" onclick="closeModal('modal-edit-deck')" style="margin-top:4px;">Cancel</button>
-  </div>
-</div>
-
-<!-- Review AI Deck Modal -->
-<div class="modal-overlay" id="modal-review-ai">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h2 style="margin-bottom:4px;">Review Generated Deck</h2>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">Edit or remove cards before saving</div>
-    <div id="ai-review-cards"></div>
-    <button class="btn btn-primary btn-full" onclick="saveAIDeck()" style="margin-bottom:8px;">Save deck</button>
-    <button class="btn btn-ghost btn-full" onclick="closeModal('modal-review-ai')">Cancel</button>
   </div>
 </div>
 
@@ -1019,9 +1026,8 @@ function renderHome() {
     );
     closest.selected = true;
   }
-  // API key
-  const k = db.settings.apiKey;
-  if(k) document.getElementById('api-key-input').value = k;
+  // (API key input removed)
+
 }
 
 function renderHomeDeckList() {
@@ -1046,13 +1052,18 @@ function renderHomeDeckList() {
     div.className='deck-card';
     div.style.cursor='pointer';
     const checked = deck.selected;
-    const tags = (deck.tags||[]).map(t=>`<span style="font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 6px;border-radius:99px;">${t}</span>`).join(' ');
+    const known = deck.cards.filter(c=>(db.words[c.id]||{}).status==='known').length;
+    const learning = deck.cards.filter(c=>(db.words[c.id]||{}).status==='learning').length;
+    const unknown = deck.cards.length - known - learning;
     div.innerHTML=`
       <div class="deck-icon">${deck.icon||'📚'}</div>
       <div class="deck-info">
         <div class="deck-name">${deck.name}</div>
-        <div class="deck-meta">${deck.cards.length} cards${deck.topik?' · TOPIK '+deck.topik:''}</div>
-        ${tags ? `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">${tags}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:3px;font-size:11px;">
+          <span style="color:var(--green);">${known} known</span>
+          <span style="color:var(--accent2);">${learning} learning</span>
+          <span style="color:var(--text3);">${unknown} new</span>
+        </div>
       </div>
       <div class="deck-check ${checked?'checked':''}">${checked?'✓':''}</div>
     `;
@@ -1083,10 +1094,11 @@ function updateSessionSelects() {
 
   // Rebuild new-cards options: 5 up to size, step 5
   newSel.innerHTML = '';
-  for(let v = 5; v <= size; v += 5) {
+  // 0 new cards is always an option
+  for(let v = 0; v <= size; v += 5) {
     const opt = document.createElement('option');
     opt.value = v;
-    opt.textContent = v + ' new';
+    opt.textContent = v === 0 ? '0 new (review only)' : v + ' new';
     if(v === Math.min(currentNew, size)) opt.selected = true;
     newSel.appendChild(opt);
   }
@@ -1120,7 +1132,7 @@ function startSession(type) {
   saveDB();
 
   const size = db.settings.sessionSize;
-  const newCount = type==='learn' ? db.settings.newCards : 0;
+  const newCount = db.settings.newCards; // 0 = review only
   const hardMode = db.settings.hardMode;
   const includeKnown = db.settings.includeKnown;
 
@@ -1147,7 +1159,7 @@ function startSession(type) {
   pool = pool.concat(learning.slice(0, size - newCount));
 
   // Add new unknown cards
-  if(type==='learn') {
+  if(newCount > 0) {
     pool = pool.concat(unknown.slice(0, newCount));
   }
 
@@ -1158,7 +1170,7 @@ function startSession(type) {
   }
 
   // Add known cards (at most once per week, if toggled)
-  if(includeKnown || type==='review') {
+  if(includeKnown) {
     const today = todayStr();
     const eligibleKnown = known.filter(c => {
       const w = db.words[c.id];
@@ -1174,7 +1186,7 @@ function startSession(type) {
 
   if(!pool.length) {
     // Use whatever is available rather than blocking
-    pool = shuffle([...learning, ...(type==='learn'?unknown:[]), ...(includeKnown||type==='review'?known:[])]).slice(0, size);
+    pool = shuffle([...learning, ...(newCount>0?unknown:[]), ...(includeKnown?known:[])]).slice(0, size);
     if(!pool.length) { showNotif('No cards available! Add cards to your decks first.'); return; }
     showNotif('Starting with ' + pool.length + ' available cards');
   }
@@ -1311,9 +1323,10 @@ function renderSessionCard() {
 function renderDots(elId, filled, max) {
   const el = document.getElementById(elId);
   el.innerHTML='';
+  const complete = filled >= max;
   for(let i=0;i<max;i++){
     const d=document.createElement('div');
-    d.className='dot'+(max===1?' single':'')+(i<filled?' filled':'');
+    d.className='dot'+(max===1?' single':'')+(i<filled?' filled':'')+(complete?' complete':'');
     el.appendChild(d);
   }
 }
@@ -1415,6 +1428,7 @@ function updateWordRecord(card, correct) {
 }
 
 function showSessionComplete() {
+  document.getElementById('session-progress-bar').style.width = '100%';
   document.getElementById('session-card-area').style.display='none';
   document.getElementById('session-complete').style.display='block';
 
@@ -1480,7 +1494,7 @@ function endSession() {
 }
 
 function restartSession() {
-  if(session) startSession(session.type);
+  if(session) startSession('learn');
 }
 
 // ============================================================
@@ -1490,7 +1504,6 @@ let currentDeckFilter = 'all';
 let currentTagFilter = null;
 let editingDeckId = null;
 let editingCardIdx = null;
-let pendingAIDeck = null;
 let pendingImportCards = [];
 
 // ============================================================
@@ -1617,6 +1630,7 @@ function renderDecks() {
   decks.forEach(deck=>{
     const div=document.createElement('div');
     div.className='deck-card';
+    div.style.cursor='pointer';
     const tags=(deck.tags||[]).map(t=>`<span class="tag" style="font-size:11px;padding:2px 7px;">${t}</span>`).join('');
     div.innerHTML=`
       <div class="deck-icon">${deck.icon||'📚'}</div>
@@ -1627,8 +1641,38 @@ function renderDecks() {
       </div>
       <button class="btn btn-ghost" onclick="openEditDeck('${deck.id}');event.stopPropagation();" style="padding:8px;font-size:18px;">✏️</button>
     `;
+    div.onclick=()=>openDeckCardView(deck.id);
     list.appendChild(div);
   });
+}
+
+function openDeckCardView(deckId) {
+  const deck = db.decks.find(d=>d.id===deckId);
+  if(!deck) return;
+  document.getElementById('deck-cards-title').textContent = deck.name;
+  document.getElementById('deck-cards-edit-btn').onclick = () => { closeModal('modal-deck-cards'); openEditDeck(deckId); };
+  const list = document.getElementById('deck-cards-list');
+  list.innerHTML = '';
+  if(!deck.cards.length) {
+    list.innerHTML = '<div class="empty-state"><div class="emoji">🃏</div><p>No cards yet.</p></div>';
+  } else {
+    deck.cards.forEach(card => {
+      const w = db.words[card.id]||{};
+      const status = w.status||'unknown';
+      const statusColor = {known:'var(--green)',learning:'var(--accent2)',unknown:'var(--text3)'}[status];
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);';
+      row.innerHTML = `
+        <div style="flex:1;min-width:0;">
+          <div class="korean" style="font-size:18px;font-weight:500;">${card.korean}</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;">${card.english}</div>
+        </div>
+        <div style="font-size:11px;font-weight:500;color:${statusColor};flex-shrink:0;">${status}</div>
+      `;
+      list.appendChild(row);
+    });
+  }
+  openModal('modal-deck-cards');
 }
 
 function openCreateFolder() {
@@ -1670,111 +1714,6 @@ function setCreateMode(mode, el) {
 }
 
 // AI Deck Generation
-async function generateAIDeck() {
-  const name = document.getElementById('ai-deck-name').value.trim();
-  const topic = document.getElementById('ai-topic').value.trim();
-  const count = document.getElementById('ai-count').value;
-  const topik = document.getElementById('ai-topik').value;
-  const tags = document.getElementById('ai-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
-
-  if(!topic) { showNotif('Enter a topic first'); return; }
-  if(!db.settings.apiKey) { showNotif('Add your API key in Settings first'); return; }
-
-  const btn = document.getElementById('ai-generate-btn');
-  btn.textContent='Generating...';
-  btn.disabled=true;
-
-  const countNum = parseInt(count);
-  const largeNote = countNum > 100 ? ' Note: for large decks, some words may be less closely related to the topic.' : '';
-  const prompt = `Generate ${count} Korean vocabulary flashcards about: "${topic}".${topik?' Target TOPIK level '+topik+'.':''}${largeNote}
-
-Return ONLY valid JSON, no markdown, no explanation. Format:
-{"cards":[{"korean":"한국어단어","koreanSentence":"예시 문장입니다.","english":"english word","englishSentence":"Example sentence here."}]}
-
-Requirements:
-- Korean should be natural, common usage
-- Include varied word types (nouns, verbs, adjectives)
-- Sentences should be practical and illustrative
-- No romanisation
-- Generate ALL ${count} cards, do not truncate`;
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':db.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})
-    });
-    const data = await resp.json();
-    if(data.error) throw new Error(data.error.message);
-    const text = data.content[0].text;
-    const clean = text.replace(/```json|```/g,'').trim();
-    const parsed = JSON.parse(clean);
-
-    pendingAIDeck = {
-      name: name || topic,
-      cards: parsed.cards.map(c=>({...c, id:genId()})),
-      tags,
-      topik,
-      source: 'ai',
-    };
-    openReviewAIDeck(pendingAIDeck);
-  } catch(e) {
-    showNotif('Generation failed: '+e.message);
-  } finally {
-    btn.textContent='✨ Generate deck';
-    btn.disabled=false;
-  }
-}
-
-function openReviewAIDeck(deck) {
-  const container = document.getElementById('ai-review-cards');
-  container.innerHTML='';
-  deck.cards.forEach((card,i)=>{
-    const div=document.createElement('div');
-    div.className='card';
-    div.style.marginBottom='8px';
-    div.innerHTML=`
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-        <div style="flex:1;">
-          <div class="korean" style="font-size:20px;font-weight:500;margin-bottom:4px;">${card.korean}</div>
-          <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">${card.english}</div>
-          <div class="korean" style="font-size:12px;color:var(--text3);">${card.koreanSentence}</div>
-        </div>
-        <button onclick="removeAICard(${i})" style="color:var(--text3);font-size:16px;padding:4px;flex-shrink:0;">✕</button>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-  closeModal('modal-create-deck');
-  openModal('modal-review-ai');
-}
-
-function removeAICard(idx) {
-  if(!pendingAIDeck) return;
-  pendingAIDeck.cards.splice(idx,1);
-  openReviewAIDeck(pendingAIDeck);
-}
-
-function saveAIDeck() {
-  if(!pendingAIDeck) return;
-  const deck = {
-    id: genId(),
-    name: pendingAIDeck.name,
-    cards: pendingAIDeck.cards,
-    tags: pendingAIDeck.tags,
-    topik: pendingAIDeck.topik,
-    source: 'ai',
-    icon: '✨',
-    selected: false,
-    createdAt: Date.now(),
-  };
-  db.decks.push(deck);
-  saveDB();
-  closeModal('modal-review-ai');
-  renderDecks();
-  showNotif('Deck saved: '+deck.name);
-}
-
 // Manual deck
 function addManualCard() {
   const list = document.getElementById('manual-cards-list');
@@ -1783,56 +1722,14 @@ function addManualCard() {
   div.style.marginBottom='8px';
   div.innerHTML=`
     <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
-      <input class="input korean" placeholder="Korean" style="font-size:18px;flex:1;" data-field="korean" oninput="showGenRestBtn(this)">
+      <input class="input korean" placeholder="Korean" style="font-size:18px;flex:1;" data-field="korean">
       <button onclick="this.closest('.card').remove()" style="color:var(--text3);font-size:18px;padding:4px;flex-shrink:0;">✕</button>
     </div>
-    <div style="position:relative;margin-bottom:6px;">
-      <input class="input korean" placeholder="Korean example sentence" style="font-size:14px;padding-right:90px;" data-field="koreanSentence">
-      <button class="gen-rest-btn" onclick="generateRestOfCard(this.closest('.card'))" style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;padding:4px 8px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:4px;color:var(--accent2);white-space:nowrap;">✨ Fill</button>
-    </div>
+    <input class="input korean" placeholder="Korean example sentence" style="font-size:14px;margin-bottom:6px;" data-field="koreanSentence">
     <input class="input" placeholder="English" style="margin-bottom:6px;" data-field="english">
     <input class="input" placeholder="English example sentence" data-field="englishSentence">
   `;
   list.appendChild(div);
-}
-
-function showGenRestBtn(input) {
-  const card = input.closest('.card');
-  const btn = card.querySelector('.gen-rest-btn');
-  if(btn) btn.style.display = input.value.trim() ? 'block' : 'none';
-}
-
-async function generateRestOfCard(cardDiv) {
-  const kr = cardDiv.querySelector('[data-field="korean"]').value.trim();
-  if(!kr){ showNotif('Enter the Korean word first'); return; }
-  if(!db.settings.apiKey){ showNotif('Add your API key in Settings first'); return; }
-
-  const btn = cardDiv.querySelector('.gen-rest-btn');
-  btn.textContent='...';
-  btn.disabled=true;
-
-  const prompt=`For the Korean word/phrase "${kr}", return ONLY valid JSON (no markdown):
-{"koreanSentence":"자연스러운 예시 문장.","english":"english translation","englishSentence":"Natural example sentence in English."}`;
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':db.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})
-    });
-    const data=await resp.json();
-    if(data.error) throw new Error(data.error.message);
-    const text=data.content[0].text.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(text);
-    if(parsed.koreanSentence) cardDiv.querySelector('[data-field="koreanSentence"]').value=parsed.koreanSentence;
-    if(parsed.english) cardDiv.querySelector('[data-field="english"]').value=parsed.english;
-    if(parsed.englishSentence) cardDiv.querySelector('[data-field="englishSentence"]').value=parsed.englishSentence;
-  } catch(e){
-    showNotif('Generation failed: '+e.message);
-  } finally {
-    btn.textContent='✨ Fill';
-    btn.disabled=false;
-  }
 }
 
 function saveManualDeck() {
@@ -1908,10 +1805,23 @@ async function importApkg(file) {
     if(res.length && res[0].values) {
       res[0].values.forEach(row => {
         const fields = row[0].split('\x1f'); // Anki field separator
-        const korean = (fields[0]||'').replace(/<[^>]+>/g,'').trim();
-        const english = (fields[1]||'').replace(/<[^>]+>/g,'').trim();
-        const koreanSentence = (fields[2]||'').replace(/<[^>]+>/g,'').trim();
-        const englishSentence = (fields[3]||'').replace(/<[^>]+>/g,'').trim();
+        const rawF0 = (fields[0]||'').replace(/<[^>]+>/g,'').trim();
+        const rawF1 = (fields[1]||'').replace(/<[^>]+>/g,'').trim();
+        const rawF2 = (fields[2]||'').replace(/<[^>]+>/g,'').trim();
+        const rawF3 = (fields[3]||'').replace(/<[^>]+>/g,'').trim();
+
+        // Determine which fields contain Hangul
+        const hasHangul0 = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/.test(rawF0);
+        const hasHangul1 = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/.test(rawF1);
+
+        // Korean field = whichever of f0/f1 contains Hangul; English = the other
+        const korean = hasHangul0 ? rawF0 : (hasHangul1 ? rawF1 : rawF0);
+        const english = hasHangul0 ? rawF1 : (hasHangul1 ? rawF0 : rawF1);
+
+        // For sentences, same logic: pick Hangul-containing field for koreanSentence
+        const hasHangul2 = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/.test(rawF2);
+        const koreanSentence = hasHangul2 ? rawF2 : rawF3;
+        const englishSentence = hasHangul2 ? rawF3 : rawF2;
         if(korean) pendingImportCards.push({id:genId(), korean, english, koreanSentence, englishSentence});
       });
     }
@@ -2034,9 +1944,17 @@ function saveEditDeck() {
 }
 
 function deleteDeck() {
-  if(!confirm('Delete this deck?')) return;
+  const deck = db.decks.find(d=>d.id===editingDeckId);
+  if(!deck) return;
+  document.getElementById('delete-deck-msg').textContent =
+    `"${deck.name}" and its ${deck.cards.length} card${deck.cards.length!==1?'s':''} will be permanently deleted.`;
+  openModal('modal-delete-deck');
+}
+
+function confirmDeleteDeck() {
   db.decks = db.decks.filter(d=>d.id!==editingDeckId);
   saveDB();
+  closeModal('modal-delete-deck');
   closeModal('modal-edit-deck');
   renderDecks();
   showNotif('Deck deleted');
@@ -2082,7 +2000,6 @@ function openEditCard(deckId, cardIdx) {
     document.getElementById('card-audio-upload')._currentAudio = null;
   }
 
-  showEditGenBtn();
   closeModal('modal-edit-deck');
   openModal('modal-edit-card');
 }
@@ -2208,7 +2125,9 @@ function renderWordsTagList() {
   if(!tagList) return;
   tagList.innerHTML = '';
   const allTags = getAllTags();
-  if(!allTags.length) { divider.style.display='none'; return; }
+  if(!allTags.length) { divider.style.display='none'; document.getElementById('words-decks-heading').style.display='none'; return; }
+  divider.style.display = 'block';
+  document.getElementById('words-decks-heading').style.display = 'block';
 
   const sectionLabel = document.createElement('div');
   sectionLabel.style.cssText = 'font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;';
@@ -2242,8 +2161,6 @@ function renderWordsTagList() {
     row.onclick = () => openWordsDrilldown('__tag__'+tag);
     tagList.appendChild(row);
   });
-
-  divider.style.display = 'block';
 }
 
 function renderWordsDeckList() {
@@ -2653,35 +2570,6 @@ function renderStreak() {
   }
 }
 
-function showEditGenBtn() {
-  const val = document.getElementById('edit-kr').value.trim();
-  document.getElementById('edit-gen-rest-btn').style.display = val ? 'block' : 'none';
-}
-
-async function generateRestOfEditCard() {
-  const kr = document.getElementById('edit-kr').value.trim();
-  if(!kr){ showNotif('Enter the Korean word first'); return; }
-  if(!db.settings.apiKey){ showNotif('Add your API key in Settings first'); return; }
-  const btn = document.getElementById('edit-gen-rest-btn');
-  btn.textContent='...'; btn.disabled=true;
-  const prompt=`For the Korean word/phrase "${kr}", return ONLY valid JSON (no markdown):
-{"koreanSentence":"자연스러운 예시 문장.","english":"english translation","englishSentence":"Natural example sentence in English."}`;
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':db.settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})
-    });
-    const data=await resp.json();
-    const text=data.content[0].text.replace(/```json|```/g,'').trim();
-    const parsed=JSON.parse(text);
-    if(parsed.koreanSentence) document.getElementById('edit-kr-sentence').value=parsed.koreanSentence;
-    if(parsed.english) document.getElementById('edit-en').value=parsed.english;
-    if(parsed.englishSentence) document.getElementById('edit-en-sentence').value=parsed.englishSentence;
-  } catch(e){ showNotif('Generation failed'); }
-  finally { btn.textContent='✨ Fill'; btn.disabled=false; }
-}
-
 // ============================================================
 // SETTINGS
 // ============================================================
@@ -2812,18 +2700,6 @@ function showProgressChart(type, el) {
   }
 }
 
-function saveApiKey() {
-  db.settings.apiKey = document.getElementById('api-key-input').value.trim();
-  saveDB();
-  const status = document.getElementById('api-key-status');
-  status.textContent = db.settings.apiKey ? '✓ Key saved locally' : '';
-}
-
-function toggleApiKeyVisibility() {
-  const input = document.getElementById('api-key-input');
-  input.type = input.type==='password'?'text':'password';
-}
-
 function exportData() {
   const blob = new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2906,9 +2782,6 @@ renderHome();
 updateSessionSelects();
 loadNotifSettings();
 loadAudioSettings();
-
-// Settings screen: load API key
-document.getElementById('api-key-input').value = db.settings.apiKey||'';
 </script>
 </body>
 </html>

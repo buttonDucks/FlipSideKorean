@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1a1a2e">
-<title>한국어 — Korean Study</title>
+<title>FlipSide Korean</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,6 +58,7 @@ select{cursor:pointer;}
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:calc(var(--nav-h) + var(--safe-bottom));padding-bottom:var(--safe-bottom);background:var(--bg2);border-top:1px solid var(--border);display:flex;z-index:100;}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:10px;color:var(--text3);transition:color 0.2s;padding-top:4px;}
 .nav-btn.active{color:var(--accent2);}
+.nav-btn.active svg{filter:drop-shadow(0 0 4px rgba(157,145,251,0.4));}
 .nav-btn svg{width:22px;height:22px;}
 .nav-btn span{font-size:10px;letter-spacing:0.02em;}
 
@@ -261,7 +262,16 @@ select.input{appearance:none;-webkit-appearance:none;}
 .tab-pill{flex:1;padding:8px;border-radius:6px;font-size:13px;font-weight:500;color:var(--text3);text-align:center;transition:all 0.15s;}
 .tab-pill.active{background:var(--surface2);color:var(--text);border:1px solid var(--border2);}
 
-/* SHIMMER LOADING */
+/* THEMED SCROLLBAR */
+#home-deck-list::-webkit-scrollbar{width:4px;}
+#home-deck-list::-webkit-scrollbar-track{background:transparent;}
+#home-deck-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+#home-deck-list::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+#home-deck-list{scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+#edit-deck-cards-list::-webkit-scrollbar{width:4px;}
+#edit-deck-cards-list::-webkit-scrollbar-track{background:transparent;}
+#edit-deck-cards-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+#edit-deck-cards-list{scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 .shimmer{background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
 </style>
@@ -274,7 +284,7 @@ select.input{appearance:none;-webkit-appearance:none;}
     <div id="screen-home" class="screen active">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
         <div>
-          <h1>한국어</h1>
+          <h1>FlipSide</h1>
           <div style="font-size:13px;color:var(--text3);margin-top:2px;">Korean Study</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
@@ -312,7 +322,7 @@ select.input{appearance:none;-webkit-appearance:none;}
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px;font-weight:500;color:var(--green);" id="today-learned-val">0</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:2px;">learned</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px;">new cards</div>
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px;font-weight:500;color:var(--gold);" id="today-accuracy-val">—</div>
@@ -444,8 +454,8 @@ select.input{appearance:none;-webkit-appearance:none;}
           <button class="ans-btn" onclick="answerCard(false)">✗</button>
           <button class="ans-btn" onclick="answerCard(true)">✓</button>
         </div>
-        <div id="undo-btn-wrap" style="display:none;margin-top:8px;text-align:center;">
-          <button onclick="undoLastAnswer()" style="font-size:12px;color:var(--text3);padding:6px 16px;border:1px solid var(--border2);border-radius:99px;background:var(--surface2);">↩ Undo</button>
+        <div style="text-align:center;margin-top:10px;">
+          <button id="undo-btn" onclick="undoLastAnswer()" style="font-size:12px;color:var(--text3);padding:6px 20px;border:1px solid var(--border2);border-radius:99px;background:var(--surface2);opacity:0.4;pointer-events:none;transition:opacity 0.2s;">↩ Undo</button>
         </div>
       </div>
 
@@ -467,7 +477,10 @@ select.input{appearance:none;-webkit-appearance:none;}
     <div id="screen-decks" class="screen">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2>Decks</h2>
-        <button class="btn btn-secondary btn-sm" onclick="openCreateFolder()">+ Tag</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="openManageTags()">Manage tags</button>
+          <button class="btn btn-secondary btn-sm" onclick="openCreateFolder()">+ Tag</button>
+        </div>
       </div>
 
       <!-- Tag filter -->
@@ -490,7 +503,7 @@ select.input{appearance:none;-webkit-appearance:none;}
       <div id="words-overview">
         <h2 style="margin-bottom:16px;">Words</h2>
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;cursor:pointer;" onclick="openWordsDrilldown('__all__')">
-          <div style="font-size:14px;font-weight:500;color:var(--text);">All decks</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text);">View all cards</div>
           <div style="color:var(--text3);font-size:18px;">›</div>
         </div>
         <!-- Tags -->
@@ -563,8 +576,7 @@ select.input{appearance:none;-webkit-appearance:none;}
         <div id="progress-panel" style="display:none;margin-top:16px;" onclick="event.stopPropagation()">
           <!-- Tab pills for chart types -->
           <div class="tab-pills" id="progress-tabs" style="margin-bottom:12px;">
-            <div class="tab-pill active" onclick="showProgressChart('heatmap',this)">Heatmap</div>
-            <div class="tab-pill" onclick="showProgressChart('exp',this)">Exp</div>
+            <div class="tab-pill active" onclick="showProgressChart('exp',this)">Exp</div>
             <div class="tab-pill" onclick="showProgressChart('words',this)">Words</div>
           </div>
           <div id="progress-chart-area"></div>
@@ -651,17 +663,8 @@ select.input{appearance:none;-webkit-appearance:none;}
 
     <!-- Manual mode -->
     <div id="create-manual" style="display:none;">
-      <input class="input" id="manual-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
+      <input class="input" id="manual-deck-name" placeholder="Deck name" maxlength="50" style="margin-bottom:8px;">
       <div id="manual-tag-selector" style="margin-bottom:8px;"></div>
-      <select class="input" id="manual-topik" style="margin-bottom:12px;">
-        <option value="">TOPIK level (optional)</option>
-        <option value="1">TOPIK 1 — Beginner</option>
-        <option value="2">TOPIK 2 — Elementary</option>
-        <option value="3">TOPIK 3 — Intermediate</option>
-        <option value="4">TOPIK 4 — Upper-Int.</option>
-        <option value="5">TOPIK 5 — Advanced</option>
-        <option value="6">TOPIK 6 — Mastery</option>
-      </select>
       <div id="manual-cards-list"></div>
       <button class="btn btn-secondary btn-full" onclick="addManualCard()" style="margin-bottom:12px;">+ Add card</button>
       <button class="btn btn-primary btn-full" onclick="saveManualDeck()">Save deck</button>
@@ -669,7 +672,7 @@ select.input{appearance:none;-webkit-appearance:none;}
 
     <!-- Import mode -->
     <div id="create-import">
-      <input class="input" id="import-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
+      <input class="input" id="import-deck-name" placeholder="Deck name" maxlength="50" style="margin-bottom:8px;">
       <div id="import-tag-selector" style="margin-bottom:8px;"></div>
       <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;margin-bottom:12px;">
         <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Anki (.apkg) or CSV file</div>
@@ -741,8 +744,8 @@ select.input{appearance:none;-webkit-appearance:none;}
 </div>
 
 <!-- Delete Deck Confirmation Modal -->
-<div class="modal-overlay" id="modal-delete-deck" style="align-items:center;">
-  <div class="modal" style="border-radius:var(--radius);max-width:300px;margin:0 auto;padding:20px;">
+<div class="modal-overlay" id="modal-delete-deck" style="align-items:center;z-index:300;">
+  <div class="modal" style="border-radius:var(--radius);max-width:300px;margin:0 auto;padding:20px;position:relative;z-index:301;">
     <h2 style="margin-bottom:8px;font-size:16px;">Delete deck?</h2>
     <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:16px;" id="delete-deck-msg"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -752,12 +755,23 @@ select.input{appearance:none;-webkit-appearance:none;}
   </div>
 </div>
 
+<!-- Manage Tags Modal -->
+<div class="modal-overlay" id="modal-manage-tags">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 style="margin-bottom:16px;">Manage tags</h2>
+    <div id="manage-tags-list"></div>
+    <button class="btn btn-primary btn-full" onclick="closeModal('modal-manage-tags');openCreateFolder();" style="margin-top:12px;">+ New tag</button>
+    <button class="btn btn-ghost btn-full" onclick="closeModal('modal-manage-tags')" style="margin-top:8px;">Done</button>
+  </div>
+</div>
+
 <!-- Create Tag Modal -->
 <div class="modal-overlay" id="modal-create-folder">
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:16px;">New tag</h2>
-    <input class="input" id="folder-name-input" placeholder="Tag name (e.g. Travel, TOPIK 1)" style="margin-bottom:12px;">
+    <input class="input" id="folder-name-input" placeholder="Tag name (e.g. Travel, TOPIK 1)" maxlength="30" style="margin-bottom:12px;">
     <button class="btn btn-primary btn-full" onclick="saveFolder()" style="margin-bottom:8px;">Create tag</button>
     <button class="btn btn-ghost btn-full" onclick="closeModal('modal-create-folder')">Cancel</button>
   </div>
@@ -796,18 +810,10 @@ select.input{appearance:none;-webkit-appearance:none;}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:16px;">Edit Deck</h2>
-    <input class="input" id="edit-deck-name" placeholder="Deck name" style="margin-bottom:8px;">
+    <input class="input" id="edit-deck-name" placeholder="Deck name" maxlength="50" style="margin-bottom:8px;">
     <div id="edit-deck-tag-selector" style="margin-bottom:8px;"></div>
-    <select class="input" id="edit-deck-topik" style="margin-bottom:16px;">
-      <option value="">TOPIK level (optional)</option>
-      <option value="1">TOPIK 1 — Beginner</option>
-      <option value="2">TOPIK 2 — Elementary</option>
-      <option value="3">TOPIK 3 — Intermediate</option>
-      <option value="4">TOPIK 4 — Upper-Int.</option>
-      <option value="5">TOPIK 5 — Advanced</option>
-      <option value="6">TOPIK 6 — Mastery</option>
-    </select>
-    <div id="edit-deck-cards-list"></div>
+    <!-- Card list in scrollable box -->
+    <div id="edit-deck-cards-list" style="max-height:240px;overflow-y:auto;margin-bottom:8px;"></div>
     <button class="btn btn-secondary btn-full" onclick="addCardToEditDeck()" style="margin-bottom:12px;">+ Add card</button>
     <button class="btn btn-primary btn-full" onclick="saveEditDeck()" style="margin-bottom:8px;">Save changes</button>
     <button class="btn btn-secondary btn-full" style="color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="deleteDeck()">Delete deck</button>
@@ -1041,12 +1047,13 @@ function renderHome() {
 function renderHomeDeckList() {
   const list = document.getElementById('home-deck-list');
   const noDecks = document.getElementById('home-no-decks');
+  // Save scroll position before clearing
+  const savedScroll = list.scrollTop;
   list.innerHTML='';
   if(!db.decks.length){noDecks.style.display='block'; document.getElementById('all-decks-row').style.display='none'; return;}
   noDecks.style.display='none';
   document.getElementById('all-decks-row').style.display='flex';
 
-  // Default: if no deck has ever been explicitly configured, select all
   if(!db.decks.some(d => d.hasOwnProperty('selected'))) {
     db.decks.forEach(d=>d.selected=true);
   }
@@ -1062,7 +1069,8 @@ function renderHomeDeckList() {
         const active = (window._homeTagFilter === tag);
         chip.className = 'tag' + (active ? ' active' : '');
         chip.textContent = tag;
-        chip.onclick = () => {
+        chip.onclick = (e) => {
+          e.stopPropagation();
           window._homeTagFilter = (window._homeTagFilter === tag) ? null : tag;
           renderHomeDeckList();
         };
@@ -1076,7 +1084,6 @@ function renderHomeDeckList() {
   allCheck.className = 'deck-check' + (allSelected?' checked':'');
   allCheck.textContent = allSelected ? '✓' : '';
 
-  // Filter by active tag if set
   const decksToShow = window._homeTagFilter
     ? db.decks.filter(d => (d.tags||[]).includes(window._homeTagFilter))
     : db.decks;
@@ -1087,6 +1094,11 @@ function renderHomeDeckList() {
     div.style.cursor='pointer';
     div.style.marginBottom='6px';
     const checked = deck.selected;
+    // Highlight selected decks
+    if(checked) {
+      div.style.background = 'rgba(124,109,250,0.08)';
+      div.style.borderColor = 'rgba(124,109,250,0.3)';
+    }
     const known = deck.cards.filter(c=>(db.words[c.id]||{}).status==='known').length;
     const learning = deck.cards.filter(c=>(db.words[c.id]||{}).status==='learning').length;
     const unknown = deck.cards.length - known - learning;
@@ -1096,8 +1108,8 @@ function renderHomeDeckList() {
         <div class="deck-name">${deck.name}</div>
         <div style="display:flex;gap:8px;margin-top:3px;font-size:11px;">
           <span style="color:var(--green);">${known} known</span>
-          <span style="color:var(--accent2);">${learning} learning</span>
-          <span style="color:var(--text3);">${unknown} new</span>
+          <span style="color:var(--accent2);opacity:0.6;">${learning} learning</span>
+          <span style="color:var(--text3);opacity:0.5;">${unknown} new</span>
         </div>
       </div>
       <div class="deck-check ${checked?'checked':''}">${checked?'✓':''}</div>
@@ -1105,6 +1117,8 @@ function renderHomeDeckList() {
     div.onclick=()=>toggleDeckSelect(deck.id);
     list.appendChild(div);
   });
+  // Restore scroll position
+  requestAnimationFrame(() => { list.scrollTop = savedScroll; });
 }
 
 function toggleAllDecks() {
@@ -1308,7 +1322,8 @@ function renderSessionCard() {
   // Reset flip and answered state
   document.getElementById('card-flipper').classList.remove('flipped');
   document.getElementById('answer-btns').style.display='none';
-  document.getElementById('undo-btn-wrap').style.display='none';
+  const undoBtn = document.getElementById('undo-btn');
+  if(undoBtn) { undoBtn.style.opacity='0.4'; undoBtn.style.pointerEvents='none'; }
   session.cardAnswered = false;
   session.lastUndo = null;
 
@@ -1458,14 +1473,14 @@ function answerCard(correct) {
   renderDots('card-dots', card.dots, maxDots);
   renderDots('card-dots-back', card.dots, maxDots);
 
-  // Show undo button briefly
-  document.getElementById('undo-btn-wrap').style.display = 'block';
+  // Enable undo button
+  const undoBtn = document.getElementById('undo-btn');
+  if(undoBtn) { undoBtn.style.opacity='1'; undoBtn.style.pointerEvents='all'; }
 
   // Brief pause so dots are visible, then next card
   setTimeout(()=>{
     document.getElementById('card-flipper').classList.remove('flipped');
     document.getElementById('answer-btns').style.display='none';
-    document.getElementById('undo-btn-wrap').style.display='none';
     setTimeout(renderSessionCard, 150);
   }, 200);
 }
@@ -1485,8 +1500,9 @@ function undoLastAnswer() {
   session.lastUndo = null;
   session.cardAnswered = false;
 
-  // Hide undo button
-  document.getElementById('undo-btn-wrap').style.display='none';
+  // Disable undo button
+  const undoBtn = document.getElementById('undo-btn');
+  if(undoBtn) { undoBtn.style.opacity='0.4'; undoBtn.style.pointerEvents='none'; }
   document.getElementById('answer-btns').style.display='none';
 
   // Re-show the same card unflipped
@@ -1663,15 +1679,10 @@ function renderTagSelector(containerId, selectedTags) {
   newBtn.textContent = '+ New tag';
   newBtn.onclick = (e) => {
     e.preventDefault();
-    const name = prompt('New tag name:');
-    if(!name || !name.trim()) return;
-    const trimmed = name.trim();
-    if(!db.folders) db.folders = [];
-    if(!db.folders.find(f => f.name === trimmed)) {
-      db.folders.push({id: genId(), name: trimmed});
-      saveDB();
-    }
-    renderTagSelector(containerId, getSelectedTags(containerId).concat([trimmed]));
+    // Store which container to add to, then open modal
+    window._newTagTargetContainer = containerId;
+    document.getElementById('folder-name-input').value = '';
+    openModal('modal-create-folder');
   };
   wrap.appendChild(newBtn);
 
@@ -1779,8 +1790,40 @@ function openDeckCardView(deckId) {
 }
 
 function openCreateFolder() {
+  window._newTagTargetContainer = null;
   document.getElementById('folder-name-input').value='';
   openModal('modal-create-folder');
+}
+
+function openManageTags() {
+  const list = document.getElementById('manage-tags-list');
+  list.innerHTML = '';
+  const allTags = getAllTags();
+  if(!allTags.length) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--text2);text-align:center;padding:16px;">No tags yet.</div>';
+  } else {
+    allTags.forEach(tag => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);';
+      row.innerHTML = `
+        <div style="flex:1;font-size:14px;color:var(--text);">${tag}</div>
+        <button onclick="deleteTag('${tag}')" style="font-size:13px;color:var(--red);padding:4px 10px;border:1px solid rgba(248,113,113,0.3);border-radius:var(--radius-sm);background:none;">Delete</button>
+      `;
+      list.appendChild(row);
+    });
+  }
+  openModal('modal-manage-tags');
+}
+
+function deleteTag(name) {
+  // Remove from folders list
+  if(db.folders) db.folders = db.folders.filter(f=>f.name!==name);
+  // Remove from all decks
+  db.decks.forEach(d => { if(d.tags) d.tags = d.tags.filter(t=>t!==name); });
+  saveDB();
+  renderDecks();
+  openManageTags(); // refresh the modal
+  showNotif('Tag deleted: '+name);
 }
 
 function saveFolder() {
@@ -1792,6 +1835,12 @@ function saveFolder() {
   saveDB();
   closeModal('modal-create-folder');
   renderDecks();
+  // Refresh whichever tag selector opened this modal
+  if(window._newTagTargetContainer) {
+    const existing = getSelectedTags(window._newTagTargetContainer);
+    renderTagSelector(window._newTagTargetContainer, [...existing, name]);
+    window._newTagTargetContainer = null;
+  }
   showNotif('Tag created: '+name);
 }
 
@@ -1858,7 +1907,7 @@ function saveManualDeck() {
     name,
     cards,
     tags: getSelectedTags('manual-tag-selector'),
-    topik: document.getElementById('manual-topik').value,
+    topik: '',
     source: 'manual',
     icon: '✏️',
     selected: false,
@@ -1923,29 +1972,44 @@ async function importApkg(file) {
     pendingImportCards = [];
     if(res.length && res[0].values) {
       res[0].values.forEach(row => {
-        // Strip HTML, sound tags, and clean up
+        // Strip HTML, sound tags, furigana markers, and clean up
         const clean = s => (s||'')
           .replace(/<[^>]+>/g,'')
           .replace(/\[sound:[^\]]+\]/g,'')
+          .replace(/\[.*?\]/g,'')
           .replace(/\s+/g,' ')
           .trim();
 
         const rawFields = row[0].split('\x1f').map(clean).filter(f => f.length > 0);
         if(rawFields.length < 2) return;
 
-        // Rank fields by Hangul density
-        const hangulScore = s => (s.match(/[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/g)||[]).length / Math.max(s.length,1);
-        const scored = rawFields.map((f,i) => ({f, i, score: hangulScore(f)}));
+        // Strict Hangul score — only count actual Hangul syllables, NOT CJK/kana
+        const hangulScore = s => {
+          const hangul = (s.match(/[\uAC00-\uD7A3]/g)||[]).length;
+          return hangul / Math.max(s.length, 1);
+        };
+        // CJK/kana contamination score — penalise Japanese kana and CJK ideographs
+        const cjkScore = s => {
+          const cjk = (s.match(/[\u3040-\u30FF\u4E00-\u9FFF]/g)||[]).length;
+          return cjk / Math.max(s.length, 1);
+        };
+
+        const scored = rawFields.map((f,i) => ({f, i, score: hangulScore(f), cjk: cjkScore(f)}));
+        // Sort by Hangul score descending
         scored.sort((a,b) => b.score - a.score);
 
-        // Top scorer = Korean word, second = Korean sentence (if also has Hangul)
-        // Bottom scorer = English word, second-bottom = English sentence
         const korean = scored[0]?.f || '';
-        const koreanSentence = (scored[1]?.score > 0.1) ? scored[1].f : '';
-        // For English: take from the low-score end
-        const engScored = [...scored].reverse();
+        // Second field for koreanSentence must also have meaningful Hangul
+        const koreanSentence = (scored[1]?.score > 0.05) ? scored[1].f : '';
+
+        // English fields: low Hangul score AND low CJK/kana score
+        const engScored = rawFields
+          .map((f,i) => ({f, i, score: hangulScore(f), cjk: cjkScore(f)}))
+          .filter(x => x.score < 0.05 && x.cjk < 0.1)
+          .sort((a,b) => a.score - b.score); // least Korean first
+
         const english = engScored[0]?.f || '';
-        const englishSentence = (engScored[1] && engScored[1].score < 0.1) ? engScored[1].f : '';
+        const englishSentence = engScored.length > 1 ? engScored[1].f : '';
 
         if(korean) pendingImportCards.push({id:genId(), korean, english, koreanSentence, englishSentence});
       });
@@ -1995,18 +2059,22 @@ function previewCSV(file) {
     lines.slice(startIdx).forEach(line => {
       const cols = line.split(',').map(c=>cleanField(c.replace(/^"|"$/g,'')));
       if(cols.length>=2 && cols[0]) {
-        // Rank by Hangul density
         const hangulScore = s => (s.match(/[\uAC00-\uD7A3]/g)||[]).length / Math.max(s.length,1);
-        const scored = cols.map((f,i)=>({f,i,score:hangulScore(f)})).filter(x=>x.f);
+        const cjkScore = s => (s.match(/[\u3040-\u30FF\u4E00-\u9FFF]/g)||[]).length / Math.max(s.length,1);
+        const fields = cols.filter(c=>c.length>0);
+        const scored = fields.map((f,i)=>({f,i,score:hangulScore(f),cjk:cjkScore(f)}));
         scored.sort((a,b)=>b.score-a.score);
-        const engScored = [...scored].reverse();
-        const card = {
-          id:genId(),
-          korean: scored[0]?.f||'',
-          koreanSentence: (scored[1]?.score>0.1) ? scored[1].f : '',
-          english: engScored[0]?.f||'',
-          englishSentence: (engScored[1]?.score<0.1) ? engScored[1].f : '',
-        };
+
+        const korean = scored[0]?.f||'';
+        const koreanSentence = (scored[1]?.score>0.05) ? scored[1].f : '';
+        const engScored = fields
+          .map((f,i)=>({f,i,score:hangulScore(f),cjk:cjkScore(f)}))
+          .filter(x=>x.score<0.05&&x.cjk<0.1)
+          .sort((a,b)=>a.score-b.score);
+        const english = engScored[0]?.f||'';
+        const englishSentence = engScored.length>1 ? engScored[1].f : '';
+
+        const card = { id:genId(), korean, koreanSentence, english, englishSentence };
         if(card.korean) pendingImportCards.push(card);
       }
     });
@@ -2066,7 +2134,6 @@ function openEditDeck(id) {
   const deck = db.decks.find(d=>d.id===id);
   if(!deck) return;
   document.getElementById('edit-deck-name').value=deck.name;
-  document.getElementById('edit-deck-topik').value=deck.topik||'';
   populateTagDropdowns();
   renderTagSelector('edit-deck-tag-selector', deck.tags||[]);
   renderEditDeckCards(deck);
@@ -2111,7 +2178,6 @@ function saveEditDeck() {
   if(!deck) return;
   deck.name = document.getElementById('edit-deck-name').value.trim()||deck.name;
   deck.tags = getSelectedTags('edit-deck-tag-selector');
-  deck.topik = document.getElementById('edit-deck-topik').value;
   saveDB();
   closeModal('modal-edit-deck');
   renderDecks();
@@ -2398,13 +2464,12 @@ function openWordsDrilldown(deckId) {
   }
 }
 
-function renderDrilldownList(deck, tag) {
+function renderDrilldownList(deck, tag, startIdx) {
   const list = document.getElementById('words-drilldown-list');
-  list.innerHTML = '';
+  if(!startIdx) { list.innerHTML = ''; startIdx = 0; }
 
   let cards = [];
   if(tag) {
-    // All cards from decks that have this tag
     db.decks.filter(d=>(d.tags||[]).includes(tag)).forEach(d =>
       d.cards.forEach(c => cards.push({...c, deckName: d.name}))
     );
@@ -2419,12 +2484,14 @@ function renderDrilldownList(deck, tag) {
   const learning = cards.filter(c => (db.words[c.id]||{}).status === 'learning').length;
   const unknown = total - known - learning;
 
-  const summary = document.getElementById('drilldown-status-summary');
-  summary.innerHTML = `
-    <div style="padding:6px 12px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
-    <div style="padding:6px 12px;border-radius:99px;background:var(--accent-dim);border:1px solid rgba(124,109,250,0.3);font-size:12px;color:var(--accent2);">${learning} learning</div>
-    <div style="padding:6px 12px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text3);">${unknown} new</div>
-  `;
+  if(startIdx === 0) {
+    const summary = document.getElementById('drilldown-status-summary');
+    summary.innerHTML = `
+      <div style="padding:6px 12px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
+      <div style="padding:6px 12px;border-radius:99px;background:var(--accent-dim);border:1px solid rgba(124,109,250,0.3);font-size:12px;color:var(--accent2);">${learning} learning</div>
+      <div style="padding:6px 12px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text3);">${unknown} new</div>
+    `;
+  }
 
   const filtered = cards.filter(c => ((db.words[c.id]||{}).status||'unknown') === currentWordFilter);
 
@@ -2434,9 +2501,17 @@ function renderDrilldownList(deck, tag) {
     return;
   }
 
+  const PAGE = 100;
+  const page = filtered.slice(startIdx, startIdx + PAGE);
+
+  // Remove old load-more button if present
+  const oldBtn = document.getElementById('load-more-btn');
+  if(oldBtn) oldBtn.remove();
+
   if(!deck) {
+    // Grouped by deck
     const byDeck = {};
-    filtered.forEach(card => {
+    page.forEach(card => {
       if(!byDeck[card.deckName]) byDeck[card.deckName] = [];
       byDeck[card.deckName].push(card);
     });
@@ -2448,7 +2523,17 @@ function renderDrilldownList(deck, tag) {
       deckCards.forEach(card => list.appendChild(buildWordRow(card)));
     });
   } else {
-    filtered.forEach(card => list.appendChild(buildWordRow(card)));
+    page.forEach(card => list.appendChild(buildWordRow(card)));
+  }
+
+  if(startIdx + PAGE < filtered.length) {
+    const btn = document.createElement('button');
+    btn.id = 'load-more-btn';
+    btn.className = 'btn btn-secondary btn-full';
+    btn.style.marginTop = '12px';
+    btn.textContent = `Load more (${filtered.length - startIdx - PAGE} remaining)`;
+    btn.onclick = () => renderDrilldownList(deck, tag, startIdx + PAGE);
+    list.appendChild(btn);
   }
 }
 
@@ -2762,7 +2847,7 @@ function loadAudioSettings() {
 // PROGRESS PANEL
 // ============================================================
 let progressPanelOpen = false;
-let currentProgressChart = 'heatmap';
+let currentProgressChart = 'exp';
 
 function toggleProgressPanel() {
   progressPanelOpen = !progressPanelOpen;

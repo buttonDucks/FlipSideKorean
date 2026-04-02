@@ -26,12 +26,12 @@
   --accent: #7c6dfa;
   --accent2: #9d91fb;
   --accent-dim: rgba(124,109,250,0.15);
-  --gold: #f5c842;
+  --gold: #c9a227;
   --silver: #b8b8d0;
   --bronze: #cd7f3a;
   --diamond: #a8f0e8;
   --ice: #7dd3fc;
-  --green: #4ade80;
+  --green: #34c46a;
   --red: #f87171;
   --korean-font: 'Noto Sans KR', sans-serif;
   --ui-font: 'DM Sans', sans-serif;
@@ -313,8 +313,8 @@ select.input{appearance:none;-webkit-appearance:none;}
         <div class="section-label" style="margin-bottom:10px;">Today's progress</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
           <div style="text-align:center;">
-            <div style="font-size:20px;font-weight:500;color:var(--accent2);" id="today-exp-val">0</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:2px;">exp</div>
+            <div style="font-size:18px;font-weight:500;line-height:1;" id="today-exp-val">0</div>
+            <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="today-exp-label">/ 300 exp</div>
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px;font-weight:500;color:var(--text);" id="today-reviewed-val">0</div>
@@ -454,9 +454,11 @@ select.input{appearance:none;-webkit-appearance:none;}
           <button class="ans-btn" onclick="answerCard(false)">✗</button>
           <button class="ans-btn" onclick="answerCard(true)">✓</button>
         </div>
-        <div style="text-align:center;margin-top:10px;">
-          <button id="undo-btn" onclick="undoLastAnswer()" style="font-size:12px;color:var(--text3);padding:6px 20px;border:1px solid var(--border2);border-radius:99px;background:var(--surface2);opacity:0.4;pointer-events:none;transition:opacity 0.2s;">↩ Undo</button>
-        </div>
+      </div>
+
+      <!-- Undo — always visible below card area -->
+      <div style="text-align:center;margin-top:12px;">
+        <button id="undo-btn" onclick="undoLastAnswer()" style="font-size:12px;color:var(--text3);padding:6px 20px;border:1px solid var(--border2);border-radius:99px;background:var(--surface2);opacity:0.35;pointer-events:none;transition:opacity 0.2s;">↩ Undo last answer</button>
       </div>
 
       <!-- Session complete -->
@@ -477,10 +479,7 @@ select.input{appearance:none;-webkit-appearance:none;}
     <div id="screen-decks" class="screen">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
         <h2>Decks</h2>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-secondary btn-sm" onclick="openManageTags()">Manage tags</button>
-          <button class="btn btn-secondary btn-sm" onclick="openCreateFolder()">+ Tag</button>
-        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openManageTags()">Manage tags</button>
       </div>
 
       <!-- Tag filter -->
@@ -499,38 +498,26 @@ select.input{appearance:none;-webkit-appearance:none;}
 
     <!-- WORDS SCREEN -->
     <div id="screen-words" class="screen">
-      <!-- Overview: list of decks (no tabs here) -->
-      <div id="words-overview">
-        <h2 style="margin-bottom:16px;">Words</h2>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;cursor:pointer;" onclick="openWordsDrilldown('__all__')">
-          <div style="font-size:14px;font-weight:500;color:var(--text);">View all cards</div>
-          <div style="color:var(--text3);font-size:18px;">›</div>
-        </div>
-        <!-- Tags -->
-        <div id="words-tag-list"></div>
-        <!-- Divider if tags exist -->
-        <div id="words-tag-divider" style="display:none;height:1px;background:var(--border);margin:8px 0;"></div>
-        <!-- Decks heading -->
-        <div id="words-decks-heading" style="display:none;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">Decks</div>
-        <!-- Decks -->
-        <div id="words-deck-list"></div>
+      <h2 style="margin-bottom:12px;">Words</h2>
+      <!-- Filter controls -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <select class="input" id="words-filter-deck" onchange="applyWordsFilters()" style="font-size:13px;padding:8px 10px;">
+          <option value="">All decks</option>
+        </select>
+        <select class="input" id="words-filter-tag" onchange="applyWordsFilters()" style="font-size:13px;padding:8px 10px;">
+          <option value="">All tags</option>
+        </select>
       </div>
-      <!-- Drill-down: tabs + words from one deck -->
-      <div id="words-drilldown" style="display:none;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <button onclick="closeWordsDrilldown()" style="color:var(--text3);font-size:20px;line-height:1;">←</button>
-          <h2 id="drilldown-deck-name" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></h2>
-        </div>
-        <!-- Status summary -->
-        <div id="drilldown-status-summary" style="display:flex;gap:10px;margin-bottom:12px;"></div>
-        <!-- Tabs live here, inside drilldown -->
-        <div class="tab-pills" id="drilldown-tabs">
-          <div class="tab-pill active" onclick="filterWords('learning',this)">Learning</div>
-          <div class="tab-pill" onclick="filterWords('known',this)">Known</div>
-          <div class="tab-pill" onclick="filterWords('unknown',this)">Unknown</div>
-        </div>
-        <div id="words-drilldown-list"></div>
+      <!-- Status tabs -->
+      <div class="tab-pills" id="words-tabs">
+        <div class="tab-pill active" onclick="filterWords('learning',this)">Learning</div>
+        <div class="tab-pill" onclick="filterWords('known',this)">Known</div>
+        <div class="tab-pill" onclick="filterWords('unknown',this)">Unknown</div>
       </div>
+      <!-- Summary -->
+      <div id="drilldown-status-summary" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;"></div>
+      <!-- Word list -->
+      <div id="words-drilldown-list"></div>
     </div>
 
     <!-- STREAK SCREEN -->
@@ -589,6 +576,19 @@ select.input{appearance:none;-webkit-appearance:none;}
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
         <button onclick="showScreen('home')" style="color:var(--text3);font-size:20px;">←</button>
         <h2>Settings</h2>
+      </div>
+
+      <div class="card" style="margin-bottom:12px;">
+        <div class="section-label" style="margin-bottom:12px;">Daily goal</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px;">EXP target to reach Gold star</div>
+        <select class="input" id="daily-goal-select" onchange="saveDailyGoal()">
+          <option value="100">100 exp (easy)</option>
+          <option value="200">200 exp</option>
+          <option value="300" selected>300 exp (default)</option>
+          <option value="500">500 exp</option>
+          <option value="750">750 exp</option>
+          <option value="1000">1000 exp</option>
+        </select>
       </div>
 
       <div class="card" style="margin-bottom:12px;">
@@ -663,7 +663,8 @@ select.input{appearance:none;-webkit-appearance:none;}
 
     <!-- Manual mode -->
     <div id="create-manual" style="display:none;">
-      <input class="input" id="manual-deck-name" placeholder="Deck name" maxlength="50" style="margin-bottom:8px;">
+      <input class="input" id="manual-deck-name" placeholder="Deck name" maxlength="40" oninput="updateCharCount(this,'manual-name-count',40)" style="margin-bottom:4px;">
+      <div style="font-size:11px;color:var(--text3);text-align:right;margin-bottom:8px;" id="manual-name-count">0/40</div>
       <div id="manual-tag-selector" style="margin-bottom:8px;"></div>
       <div id="manual-cards-list"></div>
       <button class="btn btn-secondary btn-full" onclick="addManualCard()" style="margin-bottom:12px;">+ Add card</button>
@@ -672,7 +673,8 @@ select.input{appearance:none;-webkit-appearance:none;}
 
     <!-- Import mode -->
     <div id="create-import">
-      <input class="input" id="import-deck-name" placeholder="Deck name" maxlength="50" style="margin-bottom:8px;">
+      <input class="input" id="import-deck-name" placeholder="Deck name" maxlength="40" oninput="updateCharCount(this,'import-name-count',40)" style="margin-bottom:4px;">
+      <div style="font-size:11px;color:var(--text3);text-align:right;margin-bottom:8px;" id="import-name-count">0/40</div>
       <div id="import-tag-selector" style="margin-bottom:8px;"></div>
       <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:20px;text-align:center;margin-bottom:12px;">
         <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Anki (.apkg) or CSV file</div>
@@ -755,6 +757,18 @@ select.input{appearance:none;-webkit-appearance:none;}
   </div>
 </div>
 
+<!-- Unsaved Changes Modal -->
+<div class="modal-overlay" id="modal-unsaved" style="align-items:center;z-index:300;">
+  <div class="modal" style="border-radius:var(--radius);max-width:280px;margin:0 auto;padding:20px;">
+    <h2 style="margin-bottom:8px;font-size:16px;">Unsaved changes</h2>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:16px;">You have unsaved changes. Discard them?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <button class="btn btn-secondary" onclick="discardDeckChanges()" style="padding:10px;color:var(--red);border-color:rgba(248,113,113,0.3);">Discard</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-unsaved')" style="padding:10px;">Keep editing</button>
+    </div>
+  </div>
+</div>
+
 <!-- Manage Tags Modal -->
 <div class="modal-overlay" id="modal-manage-tags">
   <div class="modal">
@@ -771,7 +785,8 @@ select.input{appearance:none;-webkit-appearance:none;}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:16px;">New tag</h2>
-    <input class="input" id="folder-name-input" placeholder="Tag name (e.g. Travel, TOPIK 1)" maxlength="30" style="margin-bottom:12px;">
+    <input class="input" id="folder-name-input" placeholder="Tag name (e.g. Travel, TOPIK 1)" maxlength="25" oninput="updateCharCount(this,'tag-name-count',25)" style="margin-bottom:4px;">
+    <div style="font-size:11px;color:var(--text3);text-align:right;margin-bottom:12px;" id="tag-name-count">0/25</div>
     <button class="btn btn-primary btn-full" onclick="saveFolder()" style="margin-bottom:8px;">Create tag</button>
     <button class="btn btn-ghost btn-full" onclick="closeModal('modal-create-folder')">Cancel</button>
   </div>
@@ -810,14 +825,15 @@ select.input{appearance:none;-webkit-appearance:none;}
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 style="margin-bottom:16px;">Edit Deck</h2>
-    <input class="input" id="edit-deck-name" placeholder="Deck name" maxlength="50" style="margin-bottom:8px;">
+    <input class="input" id="edit-deck-name" placeholder="Deck name" maxlength="40" oninput="updateCharCount(this,'edit-name-count',40);window._deckDirty=true;" style="margin-bottom:4px;">
+    <div style="font-size:11px;color:var(--text3);text-align:right;margin-bottom:8px;" id="edit-name-count">0/40</div>
     <div id="edit-deck-tag-selector" style="margin-bottom:8px;"></div>
     <!-- Card list in scrollable box -->
     <div id="edit-deck-cards-list" style="max-height:240px;overflow-y:auto;margin-bottom:8px;"></div>
     <button class="btn btn-secondary btn-full" onclick="addCardToEditDeck()" style="margin-bottom:12px;">+ Add card</button>
     <button class="btn btn-primary btn-full" onclick="saveEditDeck()" style="margin-bottom:8px;">Save changes</button>
     <button class="btn btn-secondary btn-full" style="color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="deleteDeck()">Delete deck</button>
-    <button class="btn btn-ghost btn-full" onclick="closeModal('modal-edit-deck')" style="margin-top:4px;">Cancel</button>
+    <button class="btn btn-ghost btn-full" onclick="closeDeckEditSafely()" style="margin-top:4px;">Cancel</button>
   </div>
 </div>
 
@@ -982,9 +998,9 @@ function showScreen(name) {
   if(name==='home') renderHome();
   if(name==='decks') renderDecks();
   if(name==='words') {
-    currentWordsDeck = null;
     currentWordFilter = 'learning';
-    showWordsOverview();
+    document.querySelectorAll('#words-tabs .tab-pill').forEach((p,i) => p.classList.toggle('active', i===0));
+    renderWords('learning');
   }
   if(name==='streak') renderStreak();
 }
@@ -997,7 +1013,14 @@ function renderHome() {
   // Exp display
   document.getElementById('home-total-exp').textContent = (db.totalExp||0).toLocaleString();
   // Today's progress
-  document.getElementById('today-exp-val').textContent = db.todayExp||0;
+  const goal = db.settings.dailyGoal || 300;
+  const todayExp = db.todayExp || 0;
+  const goalReached = todayExp >= goal;
+  const expEl = document.getElementById('today-exp-val');
+  expEl.textContent = todayExp;
+  expEl.style.color = goalReached ? 'var(--green)' : 'var(--accent2)';
+  document.getElementById('today-exp-label').textContent = `/ ${goal} exp${goalReached ? ' ✓' : ''}`;
+  document.getElementById('today-exp-label').style.color = goalReached ? 'var(--green)' : 'var(--text3)';
   document.getElementById('today-reviewed-val').textContent = db.todayStats?.reviewed||0;
   document.getElementById('today-learned-val').textContent = db.todayStats?.learned||0;
   const acc = db.todayStats?.totalAnswers ? Math.round(db.todayStats.correct/db.todayStats.totalAnswers*100)+'%' : '—';
@@ -1272,6 +1295,7 @@ function startSession(type) {
     totalAnswers: 0,
     currentCardIdx: null,
     lastCardId: null,
+    recentCardIds: [],
     cardAnswered: false,
     lastUndo: null,
   };
@@ -1297,11 +1321,11 @@ function startSession(type) {
 function pickNextActiveCard() {
   const available = session.activePool.filter(c=>!c.done);
   if(!available.length) return null;
-  // Avoid showing the same card twice in a row if possible
-  const lastId = session.lastCardId;
-  const others = available.filter(c => c.id !== lastId);
-  const pool = others.length ? others : available;
-  return pool[Math.floor(Math.random()*pool.length)];
+  // Avoid repeating the last 2 cards if pool allows
+  const recent = session.recentCardIds || [];
+  let candidates = available.filter(c => !recent.includes(c.id));
+  if(!candidates.length) candidates = available;
+  return candidates[Math.floor(Math.random()*candidates.length)];
 }
 
 function renderSessionCard() {
@@ -1309,6 +1333,8 @@ function renderSessionCard() {
   if(!card) { showSessionComplete(); return; }
   session.currentCardIdx = session.activePool.indexOf(card);
   session.lastCardId = card.id;
+  // Track last 2 shown to avoid repeat
+  session.recentCardIds = [card.id, ...(session.recentCardIds||[])].slice(0,2);
 
   // Update progress — based on total dots filled across all cards
   document.getElementById('session-counter').textContent = session.completedCount+'/'+session.allCards.length;
@@ -1540,7 +1566,9 @@ function updateWordRecord(card, correct) {
 }
 
 function showSessionComplete() {
-  document.getElementById('session-progress-bar').style.width = '100%';
+  const bar = document.getElementById('session-progress-bar');
+  bar.style.transition = 'none';
+  bar.style.width = '100%';
   document.getElementById('session-card-area').style.display='none';
   document.getElementById('session-complete').style.display='block';
 
@@ -2039,7 +2067,11 @@ function loadSqlJs() {
 function previewCSV(file) {
   const reader = new FileReader();
   reader.onload = e => {
-    const cleanField = s => (s||'').replace(/\[sound:[^\]]+\]/g,'').replace(/<[^>]+>/g,'').trim();
+    const cleanField = s => (s||'')
+      .replace(/^["'\s]+|["'\s]+$/g, '')  // strip leading/trailing quotes and whitespace
+      .replace(/\[sound:[^\]]+\]/g,'')
+      .replace(/<[^>]+>/g,'')
+      .trim();
     const lines = e.target.result.split('\n').filter(l=>l.trim());
     pendingImportCards = [];
     let startIdx = 0;
@@ -2086,24 +2118,44 @@ function previewCSV(file) {
 function showImportPreview() {
   const preview = document.getElementById('csv-preview');
   preview.style.display='block';
-  preview.innerHTML=`<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Preview — first ${Math.min(pendingImportCards.length,5)} of ${pendingImportCards.length} cards:</div>`;
-  pendingImportCards.slice(0,5).forEach(card => {
-    const div=document.createElement('div');
-    div.style.cssText='display:flex;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:6px;overflow:hidden;border:1px solid var(--border);';
-    div.innerHTML=`
+  if(!pendingImportCards.length) return;
+
+  // Show first card with swap controls, then count
+  const first = pendingImportCards[0];
+  preview.innerHTML = `
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">Preview — ${pendingImportCards.length} cards found. Adjust fields if needed:</div>
+    <div id="import-preview-card" style="display:flex;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;border:1px solid var(--border);">
       <div style="flex:1;padding:10px 12px;min-width:0;">
-        <div class="korean" style="font-size:17px;font-weight:500;margin-bottom:4px;">${card.korean||'—'}</div>
-        ${card.koreanSentence ? `<div class="korean" style="font-size:12px;color:var(--text2);line-height:1.4;">${card.koreanSentence}</div>` : ''}
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;">Korean</div>
+        <div class="korean" style="font-size:17px;font-weight:500;margin-bottom:4px;" id="prev-kr">${first.korean||'—'}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;">Korean sentence</div>
+        <div class="korean" style="font-size:12px;color:var(--text2);" id="prev-kr-s">${first.koreanSentence||'—'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;gap:6px;">
+        <button onclick="swapImportFields('kr')" style="font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;" title="Swap Korean ↔ Korean sentence">⇅ KR</button>
+        <button onclick="swapImportFields('en')" style="font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;background:var(--surface);color:var(--text2);cursor:pointer;" title="Swap English ↔ English sentence">⇅ EN</button>
       </div>
       <div style="width:1px;background:var(--border2);flex-shrink:0;"></div>
       <div style="flex:1;padding:10px 12px;min-width:0;">
-        <div style="font-size:15px;font-weight:500;margin-bottom:4px;">${card.english||'—'}</div>
-        ${card.englishSentence ? `<div style="font-size:12px;color:var(--text2);line-height:1.4;">${card.englishSentence}</div>` : ''}
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.08em;">English</div>
+        <div style="font-size:15px;font-weight:500;margin-bottom:4px;" id="prev-en">${first.english||'—'}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;">English sentence</div>
+        <div style="font-size:12px;color:var(--text2);" id="prev-en-s">${first.englishSentence||'—'}</div>
       </div>
-    `;
-    preview.appendChild(div);
-  });
+    </div>
+  `;
   document.getElementById('import-save-btn').style.display='block';
+}
+
+function swapImportFields(side) {
+  if(side === 'kr') {
+    // Swap korean ↔ koreanSentence across all cards
+    pendingImportCards = pendingImportCards.map(c => ({...c, korean:c.koreanSentence, koreanSentence:c.korean}));
+  } else {
+    // Swap english ↔ englishSentence across all cards
+    pendingImportCards = pendingImportCards.map(c => ({...c, english:c.englishSentence, englishSentence:c.english}));
+  }
+  showImportPreview();
 }
 
 function saveImportedDeck() {
@@ -2133,10 +2185,13 @@ function openEditDeck(id) {
   editingDeckId = id;
   const deck = db.decks.find(d=>d.id===id);
   if(!deck) return;
-  document.getElementById('edit-deck-name').value=deck.name;
+  const nameInput = document.getElementById('edit-deck-name');
+  nameInput.value = deck.name;
+  updateCharCount(nameInput, 'edit-name-count', 40);
   populateTagDropdowns();
   renderTagSelector('edit-deck-tag-selector', deck.tags||[]);
   renderEditDeckCards(deck);
+  window._deckDirty = false;
   openModal('modal-edit-deck');
 }
 
@@ -2170,7 +2225,22 @@ function removeCardFromDeck(deckId, idx) {
   if(!deck) return;
   deck.cards.splice(idx,1);
   saveDB();
+  window._deckDirty = true;
   renderEditDeckCards(deck);
+}
+
+function closeDeckEditSafely() {
+  if(window._deckDirty) {
+    openModal('modal-unsaved');
+  } else {
+    closeModal('modal-edit-deck');
+  }
+}
+
+function discardDeckChanges() {
+  window._deckDirty = false;
+  closeModal('modal-unsaved');
+  closeModal('modal-edit-deck');
 }
 
 function saveEditDeck() {
@@ -2179,6 +2249,7 @@ function saveEditDeck() {
   deck.name = document.getElementById('edit-deck-name').value.trim()||deck.name;
   deck.tags = getSelectedTags('edit-deck-tag-selector');
   saveDB();
+  window._deckDirty = false;
   closeModal('modal-edit-deck');
   renderDecks();
   showNotif('Deck updated');
@@ -2271,6 +2342,7 @@ function saveEditCard() {
   else deck.cards.push(card);
 
   saveDB();
+  window._deckDirty = true;
   closeModal('modal-edit-card');
   openModal('modal-edit-deck');
   const updatedDeck = db.decks.find(d=>d.id===editingDeckId);
@@ -2328,218 +2400,89 @@ function deleteCardAudio() {
 // WORDS
 // ============================================================
 let currentWordFilter = 'learning';
-let currentWordsDeck = null;
+let currentWordsDeck = null; // kept for compat
 
 function renderWords(filter) {
   currentWordFilter = filter || currentWordFilter;
-  // Always show overview when entering the tab
-  showWordsOverview();
+  populateWordsFilters();
+  applyWordsFilters();
 }
 
 function filterWords(filter, el) {
   currentWordFilter = filter;
-  document.querySelectorAll('#drilldown-tabs .tab-pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  refreshDrilldown();
+  document.querySelectorAll('#words-tabs .tab-pill').forEach(p => p.classList.remove('active'));
+  if(el) el.classList.add('active');
+  applyWordsFilters();
 }
 
-function refreshDrilldown() {
-  if(!currentWordsDeck) return;
-  if(currentWordsDeck === '__all__') renderDrilldownList(null, null);
-  else if(currentWordsDeck.startsWith('__tag__')) renderDrilldownList(null, currentWordsDeck.slice(7));
-  else {
-    const deck = db.decks.find(d => d.id === currentWordsDeck);
-    renderDrilldownList(deck||null, null);
-  }
-}
-
-function showWordsOverview() {
-  document.getElementById('words-overview').style.display = 'block';
-  document.getElementById('words-drilldown').style.display = 'none';
-  renderWordsDeckList();
-  renderWordsTagList();
-}
-
-function renderWordsTagList() {
-  const tagList = document.getElementById('words-tag-list');
-  const divider = document.getElementById('words-tag-divider');
-  if(!tagList) return;
-  tagList.innerHTML = '';
-  const allTags = getAllTags();
-  if(!allTags.length) { divider.style.display='none'; document.getElementById('words-decks-heading').style.display='none'; return; }
-  divider.style.display = 'block';
-  document.getElementById('words-decks-heading').style.display = 'block';
-
-  const sectionLabel = document.createElement('div');
-  sectionLabel.style.cssText = 'font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;';
-  sectionLabel.textContent = 'Tags';
-  tagList.appendChild(sectionLabel);
-
-  allTags.forEach(tag => {
-    const tagDecks = db.decks.filter(d => (d.tags||[]).includes(tag));
-    const total = tagDecks.reduce((s,d) => s+d.cards.length, 0);
-    const known = tagDecks.reduce((s,d) => s+d.cards.filter(c=>(db.words[c.id]||{}).status==='known').length, 0);
-    const learning = tagDecks.reduce((s,d) => s+d.cards.filter(c=>(db.words[c.id]||{}).status==='learning').length, 0);
-
-    const row = document.createElement('div');
-    row.className = 'card';
-    row.style.marginBottom = '6px';
-    row.style.cursor = 'pointer';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:44px;height:44px;border-radius:var(--radius-sm);background:var(--accent-dim);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🏷️</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:5px;">${tag}</div>
-          <div style="display:flex;gap:10px;font-size:12px;">
-            <span style="color:var(--green);">${known} known</span>
-            <span style="color:var(--accent2);">${learning} learning</span>
-            <span style="color:var(--text3);">${total-known-learning} new</span>
-          </div>
-        </div>
-        <div style="color:var(--text3);font-size:18px;">›</div>
-      </div>
-    `;
-    row.onclick = () => openWordsDrilldown('__tag__'+tag);
-    tagList.appendChild(row);
+function populateWordsFilters() {
+  const deckSel = document.getElementById('words-filter-deck');
+  const tagSel = document.getElementById('words-filter-tag');
+  if(!deckSel || !tagSel) return;
+  const prevDeck = deckSel.value;
+  const prevTag = tagSel.value;
+  deckSel.innerHTML = '<option value="">All decks</option>';
+  db.decks.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id; opt.textContent = d.name;
+    if(d.id === prevDeck) opt.selected = true;
+    deckSel.appendChild(opt);
+  });
+  tagSel.innerHTML = '<option value="">All tags</option>';
+  getAllTags().forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    if(t === prevTag) opt.selected = true;
+    tagSel.appendChild(opt);
   });
 }
 
-function renderWordsDeckList() {
-  const list = document.getElementById('words-deck-list');
-  list.innerHTML = '';
-
-  if(!db.decks.length) {
-    list.innerHTML = '<div class="empty-state"><div class="emoji">📚</div><p>No decks yet.</p></div>';
-    return;
-  }
-
-  db.decks.forEach(deck => {
-    const total = deck.cards.length;
-    const known = deck.cards.filter(c => (db.words[c.id]||{}).status === 'known').length;
-    const learning = deck.cards.filter(c => (db.words[c.id]||{}).status === 'learning').length;
-    const unknown = total - known - learning;
-
-    const row = document.createElement('div');
-    row.className = 'card';
-    row.style.marginBottom = '8px';
-    row.style.cursor = 'pointer';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div class="deck-icon">${deck.icon||'📚'}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${deck.name}</div>
-          <div style="display:flex;gap:10px;font-size:12px;">
-            <span style="color:var(--green);">${known} known</span>
-            <span style="color:var(--accent2);">${learning} learning</span>
-            <span style="color:var(--text3);">${unknown} new</span>
-          </div>
-        </div>
-        <div style="color:var(--text3);font-size:18px;">›</div>
-      </div>
-    `;
-    row.onclick = () => openWordsDrilldown(deck.id);
-    list.appendChild(row);
-  });
-}
-
-function openWordsDrilldown(deckId) {
-  currentWordsDeck = deckId;
-  currentWordFilter = 'learning';
-  document.getElementById('words-overview').style.display = 'none';
-  document.getElementById('words-drilldown').style.display = 'block';
-  document.querySelectorAll('#drilldown-tabs .tab-pill').forEach((p,i) => p.classList.toggle('active', i===0));
-
-  if(deckId === '__all__') {
-    document.getElementById('drilldown-deck-name').textContent = 'All decks';
-    renderDrilldownList(null, null);
-  } else if(deckId.startsWith('__tag__')) {
-    const tag = deckId.slice(7);
-    document.getElementById('drilldown-deck-name').textContent = '🏷️ ' + tag;
-    renderDrilldownList(null, tag);
-  } else {
-    const deck = db.decks.find(d => d.id === deckId);
-    if(!deck) return;
-    document.getElementById('drilldown-deck-name').textContent = deck.name;
-    renderDrilldownList(deck, null);
-  }
-}
-
-function renderDrilldownList(deck, tag, startIdx) {
-  const list = document.getElementById('words-drilldown-list');
-  if(!startIdx) { list.innerHTML = ''; startIdx = 0; }
-
+function applyWordsFilters() {
+  const deckId = document.getElementById('words-filter-deck')?.value || '';
+  const tag = document.getElementById('words-filter-tag')?.value || '';
   let cards = [];
-  if(tag) {
-    db.decks.filter(d=>(d.tags||[]).includes(tag)).forEach(d =>
-      d.cards.forEach(c => cards.push({...c, deckName: d.name}))
-    );
-  } else if(!deck) {
-    db.decks.forEach(d => d.cards.forEach(c => cards.push({...c, deckName: d.name})));
-  } else {
-    cards = deck.cards.map(c => ({...c, deckName: deck.name}));
-  }
-
+  db.decks.forEach(deck => {
+    if(deckId && deck.id !== deckId) return;
+    if(tag && !(deck.tags||[]).includes(tag)) return;
+    deck.cards.forEach(c => cards.push({...c, deckName: deck.name}));
+  });
   const total = cards.length;
   const known = cards.filter(c => (db.words[c.id]||{}).status === 'known').length;
   const learning = cards.filter(c => (db.words[c.id]||{}).status === 'learning').length;
   const unknown = total - known - learning;
-
-  if(startIdx === 0) {
-    const summary = document.getElementById('drilldown-status-summary');
-    summary.innerHTML = `
-      <div style="padding:6px 12px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
-      <div style="padding:6px 12px;border-radius:99px;background:var(--accent-dim);border:1px solid rgba(124,109,250,0.3);font-size:12px;color:var(--accent2);">${learning} learning</div>
-      <div style="padding:6px 12px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text3);">${unknown} new</div>
-    `;
-  }
-
+  const summary = document.getElementById('drilldown-status-summary');
+  if(summary) summary.innerHTML = `
+    <div style="padding:4px 10px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
+    <div style="padding:4px 10px;border-radius:99px;background:var(--accent-dim);border:1px solid rgba(124,109,250,0.3);font-size:12px;color:var(--accent2);">${learning} learning</div>
+    <div style="padding:4px 10px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text3);">${unknown} new</div>
+  `;
   const filtered = cards.filter(c => ((db.words[c.id]||{}).status||'unknown') === currentWordFilter);
+  renderWordsList(filtered, 0);
+}
 
-  if(!filtered.length) {
+function renderWordsList(filtered, startIdx) {
+  const list = document.getElementById('words-drilldown-list');
+  if(!list) return;
+  if(startIdx === 0) list.innerHTML = '';
+  if(!filtered.length && startIdx === 0) {
     const icons = {known:'⭐', learning:'📖', unknown:'❓'};
-    list.innerHTML = `<div class="empty-state"><div class="emoji">${icons[currentWordFilter]}</div><p>No ${currentWordFilter} words here yet.</p></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="emoji">${icons[currentWordFilter]}</div><p>No ${currentWordFilter} words match your filters.</p></div>`;
     return;
   }
-
   const PAGE = 100;
   const page = filtered.slice(startIdx, startIdx + PAGE);
-
-  // Remove old load-more button if present
   const oldBtn = document.getElementById('load-more-btn');
   if(oldBtn) oldBtn.remove();
-
-  if(!deck) {
-    // Grouped by deck
-    const byDeck = {};
-    page.forEach(card => {
-      if(!byDeck[card.deckName]) byDeck[card.deckName] = [];
-      byDeck[card.deckName].push(card);
-    });
-    Object.entries(byDeck).forEach(([deckName, deckCards]) => {
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);padding:12px 0 6px;border-top:1px solid var(--border);';
-      header.textContent = deckName;
-      list.appendChild(header);
-      deckCards.forEach(card => list.appendChild(buildWordRow(card)));
-    });
-  } else {
-    page.forEach(card => list.appendChild(buildWordRow(card)));
-  }
-
+  page.forEach(card => list.appendChild(buildWordRow(card)));
   if(startIdx + PAGE < filtered.length) {
     const btn = document.createElement('button');
     btn.id = 'load-more-btn';
     btn.className = 'btn btn-secondary btn-full';
     btn.style.marginTop = '12px';
     btn.textContent = `Load more (${filtered.length - startIdx - PAGE} remaining)`;
-    btn.onclick = () => renderDrilldownList(deck, tag, startIdx + PAGE);
+    btn.onclick = () => renderWordsList(filtered, startIdx + PAGE);
     list.appendChild(btn);
   }
-}
-
-function closeWordsDrilldown() {
-  currentWordsDeck = null;
-  showWordsOverview();
 }
 
 function buildWordRow(card) {
@@ -2547,7 +2490,6 @@ function buildWordRow(card) {
   const status = w.status || 'unknown';
   const days = w.recallDays?.length || 0;
   const pct = Math.min(100, Math.round(days / 21 * 100));
-
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);';
   div.innerHTML = `
@@ -2556,34 +2498,24 @@ function buildWordRow(card) {
       <div style="font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${card.english}</div>
     </div>
     ${status === 'learning' ? `
-    <div style="text-align:right;min-width:64px;">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">${days}/21 days</div>
-      <div class="progress-bar-wrap" style="width:64px;">
-        <div class="progress-bar" style="width:${pct}%;"></div>
-      </div>
+    <div style="text-align:right;min-width:60px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">${days}/21</div>
+      <div class="progress-bar-wrap" style="width:60px;"><div class="progress-bar" style="width:${pct}%;"></div></div>
     </div>` : ''}
-    <button onclick="openWordMenu('${card.id}');event.stopPropagation();" style="padding:6px 8px;color:var(--text3);font-size:20px;flex-shrink:0;line-height:1;">⋯</button>
+    <button onclick="openWordMenu('${card.id}');event.stopPropagation();" style="padding:6px 8px;color:var(--text3);font-size:20px;flex-shrink:0;line-height:1;cursor:pointer;">⋯</button>
   `;
   return div;
 }
 
 function openWordMenu(cardId) {
-  const card = (() => {
-    for(const deck of db.decks) {
-      const c = deck.cards.find(c => c.id === cardId);
-      if(c) return c;
-    }
-    return null;
-  })();
+  let card = null;
+  for(const deck of db.decks) { const c = deck.cards.find(c => c.id === cardId); if(c) { card = c; break; } }
   if(!card) return;
-
   const w = db.words[cardId] || {};
   const status = w.status || 'unknown';
-
   document.getElementById('word-menu-kr').textContent = card.korean;
   document.getElementById('word-menu-en').textContent = card.english;
   document.getElementById('word-menu-badge').innerHTML = `<span class="badge badge-${status}">${status}</span>`;
-
   const actions = document.getElementById('word-menu-actions');
   actions.innerHTML = '';
   const opts = status === 'learning'
@@ -2591,18 +2523,13 @@ function openWordMenu(cardId) {
     : status === 'unknown'
     ? [{label:'Mark as learning', next:'learning'}, {label:'Mark as known', next:'known'}]
     : [{label:'Mark as learning', next:'learning'}, {label:'Mark as unknown', next:'unknown'}];
-
   opts.forEach(opt => {
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-full';
     btn.textContent = opt.label;
-    btn.onclick = () => {
-      setWordStatus(cardId, opt.next);
-      closeModal('modal-word-menu');
-    };
+    btn.onclick = () => { setWordStatus(cardId, opt.next); closeModal('modal-word-menu'); };
     actions.appendChild(btn);
   });
-
   openModal('modal-word-menu');
 }
 
@@ -2611,9 +2538,12 @@ function setWordStatus(cardId, status) {
   db.words[cardId].status = status;
   if(status === 'known') db.words[cardId].manuallyKnown = true;
   saveDB();
-  if(currentWordsDeck) refreshDrilldown();
-  else renderWordsDeckList();
+  applyWordsFilters();
 }
+
+function showWordsOverview() { renderWords(currentWordFilter); }
+function closeWordsDrilldown() { renderWords(currentWordFilter); }
+function refreshDrilldown() { applyWordsFilters(); }
 
 // ============================================================
 // TEXT TO SPEECH
@@ -2838,6 +2768,17 @@ function saveAudioSettings() {
   saveDB();
 }
 
+function saveDailyGoal() {
+  db.settings.dailyGoal = parseInt(document.getElementById('daily-goal-select').value);
+  saveDB();
+  renderHome();
+}
+
+function loadDailyGoal() {
+  const sel = document.getElementById('daily-goal-select');
+  if(sel) sel.value = db.settings.dailyGoal || 300;
+}
+
 function loadAudioSettings() {
   const toggle = document.getElementById('toggle-autoread');
   if(toggle) toggle.checked = db.settings.autoRead !== false;
@@ -2999,13 +2940,23 @@ function closeModal(id) {
 // Close modal on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay=>{
   overlay.addEventListener('click', e=>{
-    if(e.target===overlay) overlay.classList.remove('open');
+    if(e.target!==overlay) return;
+    if(overlay.id === 'modal-edit-deck') { closeDeckEditSafely(); return; }
+    overlay.classList.remove('open');
   });
 });
 
 // ============================================================
 // UTILS
 // ============================================================
+function updateCharCount(input, counterId, max) {
+  const el = document.getElementById(counterId);
+  if(!el) return;
+  const len = input.value.length;
+  el.textContent = `${len}/${max}`;
+  el.style.color = len > max * 0.85 ? 'var(--red)' : 'var(--text3)';
+}
+
 function genId() {
   return Math.random().toString(36).slice(2,11)+'_'+Date.now().toString(36);
 }
@@ -3042,6 +2993,7 @@ renderHome();
 updateSessionSelects();
 loadNotifSettings();
 loadAudioSettings();
+loadDailyGoal();
 </script>
 </body>
 </html>

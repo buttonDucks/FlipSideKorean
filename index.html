@@ -209,11 +209,6 @@ select.input{appearance:none;-webkit-appearance:none;}
 .word-english{font-size:13px;color:var(--text2);flex:1;text-align:right;}
 .word-progress{display:flex;flex-direction:column;gap:4px;align-items:flex-end;min-width:60px;}
 
-/* STREAK GRAPH */
-.streak-graph{display:flex;align-items:flex-end;gap:4px;height:100px;padding:8px 0;}
-.streak-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
-.streak-bar{width:100%;border-radius:3px 3px 0 0;min-height:4px;transition:height 0.4s ease;}
-.streak-bar-label{font-size:9px;color:var(--text3);}
 
 /* SETTINGS */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
@@ -732,18 +727,6 @@ select.input{appearance:none;-webkit-appearance:none;}
   </div>
 </div>
 
-<!-- Deck Card View Modal -->
-<div class="modal-overlay" id="modal-deck-cards">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h2 id="deck-cards-title"></h2>
-      <button class="btn btn-secondary btn-sm" id="deck-cards-edit-btn">Edit deck</button>
-    </div>
-    <div id="deck-cards-list"></div>
-    <button class="btn btn-ghost btn-full" onclick="closeModal('modal-deck-cards')" style="margin-top:12px;">Close</button>
-  </div>
-</div>
 
 <!-- Delete Deck Confirmation Modal -->
 <div class="modal-overlay" id="modal-delete-deck" style="align-items:center;z-index:300;">
@@ -1647,7 +1630,6 @@ function restartSession() {
 // ============================================================
 // DECKS
 // ============================================================
-let currentDeckFilter = 'all';
 let currentTagFilter = null;
 let editingDeckId = null;
 let editingCardIdx = null;
@@ -1786,35 +1768,6 @@ function renderDecks() {
     div.onclick=()=>openEditDeck(deck.id);
     list.appendChild(div);
   });
-}
-
-function openDeckCardView(deckId) {
-  const deck = db.decks.find(d=>d.id===deckId);
-  if(!deck) return;
-  document.getElementById('deck-cards-title').textContent = deck.name;
-  document.getElementById('deck-cards-edit-btn').onclick = () => { closeModal('modal-deck-cards'); openEditDeck(deckId); };
-  const list = document.getElementById('deck-cards-list');
-  list.innerHTML = '';
-  if(!deck.cards.length) {
-    list.innerHTML = '<div class="empty-state"><div class="emoji">🃏</div><p>No cards yet.</p></div>';
-  } else {
-    deck.cards.forEach(card => {
-      const w = db.words[card.id]||{};
-      const status = w.status||'unknown';
-      const statusColor = {known:'var(--green)',learning:'var(--accent2)',unknown:'var(--text3)'}[status];
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);';
-      row.innerHTML = `
-        <div style="flex:1;min-width:0;">
-          <div class="korean" style="font-size:18px;font-weight:500;">${card.korean}</div>
-          <div style="font-size:13px;color:var(--text2);margin-top:2px;">${card.english}</div>
-        </div>
-        <div style="font-size:11px;font-weight:500;color:${statusColor};flex-shrink:0;">${status}</div>
-      `;
-      list.appendChild(row);
-    });
-  }
-  openModal('modal-deck-cards');
 }
 
 function openCreateFolder() {
@@ -2400,7 +2353,6 @@ function deleteCardAudio() {
 // WORDS
 // ============================================================
 let currentWordFilter = 'learning';
-let currentWordsDeck = null; // kept for compat
 
 function renderWords(filter) {
   currentWordFilter = filter || currentWordFilter;
@@ -2541,9 +2493,6 @@ function setWordStatus(cardId, status) {
   applyWordsFilters();
 }
 
-function showWordsOverview() { renderWords(currentWordFilter); }
-function closeWordsDrilldown() { renderWords(currentWordFilter); }
-function refreshDrilldown() { applyWordsFilters(); }
 
 // ============================================================
 // TEXT TO SPEECH
@@ -2629,7 +2578,6 @@ function groupConfusionPairs(cards) {
 
   // Interleave: flatten groups so similar cards appear near each other
   const result = [];
-  let gi = 0;
   const maxRound = Math.max(...groups.map(g => g.length));
   for(let r = 0; r < maxRound; r++) {
     groups.forEach(g => { if(g[r]) result.push(g[r]); });
@@ -2734,30 +2682,7 @@ function renderStreak() {
     fz.appendChild(div);
   }
 
-  // Graph (last 30 days)
-  const graph=document.getElementById('streak-graph');
-  graph.innerHTML='';
-  const today=todayStr();
-  for(let i=29;i>=0;i--){
-    const d=new Date();
-    d.setDate(d.getDate()-i);
-    const dStr=d.toISOString().slice(0,10);
-    let star='empty';
-    if(dStr===today) star=getStarForExp(db.todayExp);
-    else {
-      const h=db.streak.history.find(x=>x.date===dStr);
-      star=h?h.star:'empty';
-    }
-    const wrap=document.createElement('div');
-    wrap.className='streak-bar-wrap';
-    const expMap={diamond:500,gold:300,silver:150,bronze:20,ice:10,empty:0};
-    const h=expMap[star]||0;
-    const maxH=80;
-    const barH=star==='empty'?4:Math.max(8,Math.round(h/500*maxH));
-    const starColors={diamond:'var(--diamond)',gold:'var(--gold)',silver:'var(--silver)',bronze:'var(--bronze)',ice:'var(--ice)',empty:'var(--surface2)'};
-    wrap.innerHTML=`<div class="streak-bar" style="height:${barH}px;background:${starColors[star]};opacity:${star==='empty'?0.3:1};"></div><div class="streak-bar-label">${d.getDate()}</div>`;
-    graph.appendChild(wrap);
-  }
+
 }
 
 // ============================================================
@@ -2807,41 +2732,7 @@ function showProgressChart(type, el) {
   const today = todayStr();
   const history = db.streak.history || [];
 
-  if(type === 'heatmap') {
-    // 12-week GitHub-style heatmap
-    area.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Last 12 weeks</div>';
-    const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-template-columns:repeat(12,1fr);gap:3px;';
-    const starAlpha = {diamond:1, gold:0.8, silver:0.55, bronze:0.3, ice:0.4, empty:0.08};
-    const starColor = {diamond:'var(--diamond)', gold:'var(--gold)', silver:'var(--silver)', bronze:'var(--bronze)', ice:'var(--ice)', empty:'var(--surface2)'};
-    for(let w = 11; w >= 0; w--) {
-      const col = document.createElement('div');
-      col.style.cssText = 'display:flex;flex-direction:column;gap:3px;';
-      for(let d = 6; d >= 0; d--) {
-        const date = new Date();
-        date.setDate(date.getDate() - (w*7 + d));
-        const dStr = date.toISOString().slice(0,10);
-        let star = 'empty';
-        if(dStr === today) star = getStarForExp(db.todayExp);
-        else { const h = history.find(x => x.date === dStr); star = h ? h.star : 'empty'; }
-        const cell = document.createElement('div');
-        cell.style.cssText = `width:100%;aspect-ratio:1;border-radius:2px;background:${starColor[star]};opacity:${starAlpha[star]};`;
-        cell.title = dStr + ': ' + star;
-        col.appendChild(cell);
-      }
-      grid.appendChild(col);
-    }
-    area.appendChild(grid);
-    // Legend
-    const leg = document.createElement('div');
-    leg.style.cssText = 'display:flex;gap:8px;margin-top:8px;align-items:center;font-size:11px;color:var(--text3);';
-    leg.innerHTML = 'Less <span style="display:inline-flex;gap:2px;">' +
-      ['empty','bronze','silver','gold','diamond'].map(s =>
-        `<span style="width:10px;height:10px;border-radius:2px;background:${starColor[s]};opacity:${starAlpha[s]};display:inline-block;"></span>`
-      ).join('') + '</span> More';
-    area.appendChild(leg);
-
-  } else if(type === 'exp') {
+  if(type === 'exp') {
     // Bar chart of daily exp for last 14 days
     area.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Daily exp — last 14 days</div>';
     const bars = document.createElement('div');
@@ -2901,31 +2792,6 @@ function showProgressChart(type, el) {
   }
 }
 
-function exportData() {
-  const blob = new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href=url; a.download='korean-app-data.json'; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(event) {
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const imported = JSON.parse(e.target.result);
-      if(imported.decks && imported.words) {
-        Object.assign(db, imported);
-        saveDB();
-        showNotif('Data imported successfully');
-        renderHome();
-      } else { showNotif('Invalid data file'); }
-    } catch { showNotif('Could not read file'); }
-  };
-  reader.readAsText(file);
-}
 
 // ============================================================
 // MODAL HELPERS

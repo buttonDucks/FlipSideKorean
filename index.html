@@ -1429,7 +1429,7 @@ function answerCard(correct) {
   }; */
 
   session.totalAnswers++;
-  const maxDots = card.repsLeft + (card.repsLeft < (card.status==='new'||card.status==='learning'?2:1) ? 0 : 0);
+  const maxDots = card.repsLeft + (card.repsLeft < (card.status==='new'||card.status==='learning'?3:1) ? 0 : 0);
 
   if(correct) {
     session.correctCount++;
@@ -1447,14 +1447,14 @@ function answerCard(correct) {
       }
     }
   } else {
-    if(card.repsLeft < (card.status==='new'||card.status==='learning' ? 2 : 1)) {
+    if(card.repsLeft < (card.status==='new'||card.status==='learning' ? 3 : 1)) {
       card.repsLeft++; // reset rep progress
       session.repsFilledCount = Math.max(0, session.repsFilledCount - 1);
     }
     updateWordRecord(card.id, false);
   }
 
-  const curMax  = card.status==='new'||card.status==='learning' ? 2 : 1;
+  const curMax  = card.status==='new'||card.status==='learning' ? 3 : 1;
   const curFill = curMax - card.repsLeft;
   renderDots('card-dots',      Math.max(0, curFill), curMax);
   renderDots('card-dots-back', Math.max(0, curFill), curMax);

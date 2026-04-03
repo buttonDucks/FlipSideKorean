@@ -1779,7 +1779,7 @@ function setCreateMode(mode, el) {
   if(mode==='import') renderTagSelector('import-tag-selector', []);
 }
 
-// AI Deck Generation
+
 // Manual deck
 function addManualCard() {
   const list = document.getElementById('manual-cards-list');
@@ -2337,8 +2337,8 @@ function applyWordsFilters() {
   const unknown  = total - known - learning;
   const summary = document.getElementById('drilldown-status-summary');
   if(summary) summary.innerHTML = `
-    <div style="padding:4px 10px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
     <div style="padding:4px 10px;border-radius:99px;background:var(--accent-dim);border:1px solid rgba(124,109,250,0.3);font-size:12px;color:var(--accent2);">${learning} learning</div>
+    <div style="padding:4px 10px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
     <div style="padding:4px 10px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text3);">${unknown} new</div>
   `;
   const filtered = cards.filter(c => {
@@ -2354,11 +2354,11 @@ function renderWordsList(filtered, startIdx) {
   if(!list) return;
   if(startIdx === 0) list.innerHTML = '';
   if(!filtered.length && startIdx === 0) {
-    const icons = {known:'⭐', learning:'📖', unknown:'❓'};
+    const icons = { learning:'📖',known:'⭐', unknown:'❓'};
     list.innerHTML = `<div class="empty-state"><div class="emoji">${icons[currentWordFilter]}</div><p>No ${currentWordFilter} words match your filters.</p></div>`;
     return;
   }
-  const PAGE = 100;
+  const PAGE = 75;
   const page = filtered.slice(startIdx, startIdx + PAGE);
   const oldBtn = document.getElementById('load-more-btn');
   if(oldBtn) oldBtn.remove();
@@ -2429,9 +2429,9 @@ function setWordStatus(cardId, status) {
   // Map UI status labels to SRS statuses
   const map = { unknown: 'new', learning: 'learning', known: 'known' };
   w.status = map[status] || status;
-  if(w.status === 'known') { w.manuallyKnown = true; w.interval = 21; w.due = dateAddDays(todayStr(), 21); }
-  if(w.status === 'new')   { w.interval = 0; w.due = todayStr(); }
-  if(w.status === 'learning') { w.interval = 1; w.due = todayStr(); }
+  if(w.status === 'known') { w.manuallyKnown = true; w.daysSeen = 21; w.due = dateAddDays(todayStr(), 21); }
+  if(w.status === 'new')   { w.daysSeen = 0; w.due = todayStr(); }
+  if(w.status === 'learning') { w.daysSeen = 1; w.due = todayStr(); }
   saveDB();
   applyWordsFilters();
 }
@@ -2648,14 +2648,15 @@ function showProgressChart(type, el) {
     const pctLearning = totalCards ? Math.round(learning/totalCards*100) : 0;
 
     area.innerHTML += `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
-        <div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:var(--radius-sm);padding:10px;text-align:center;">
-          <div style="font-size:22px;font-weight:500;color:var(--green);">${known}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px;">known</div>
-        </div>
+
         <div style="background:var(--accent-dim);border:1px solid rgba(124,109,250,0.25);border-radius:var(--radius-sm);padding:10px;text-align:center;">
           <div style="font-size:22px;font-weight:500;color:var(--accent2);">${learning}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:2px;">learning</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:var(--radius-sm);padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:500;color:var(--green);">${known}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">known</div>
         </div>
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center;">
           <div style="font-size:22px;font-weight:500;color:var(--text3);">${unknown}</div>

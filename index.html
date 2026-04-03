@@ -1209,6 +1209,10 @@ function sm2Correct(w) {
   if (w.daysSeen.length >= 21) {
     w.status = 'known';
   }
+  else{
+    w.status = 'learning';
+    //ADDED THIS BIT MYSELF MAY BE WRONG ELEPHANT
+  }
 }
 
 // After a wrong answer, reset to re-learning
@@ -1417,23 +1421,6 @@ function answerCard(correct) {
   const card = session.activePool[session.currentCardIdx];
   if(!card || card.done) return;
   session.cardAnswered = true;
-
-  // Snapshot for undo
-  /*
-  session.lastUndo = {
-    cardIdx:         session.currentCardIdx,
-    repsLeft:        card.repsLeft,
-    done:            card.done,
-    completedCount:  session.completedCount,
-    repsFilledCount: session.repsFilledCount,
-    expEarned:       session.expEarned,
-    correctCount:    session.correctCount,
-    totalAnswers:    session.totalAnswers,
-    queueSnap:       [...session.queue],
-    poolSnap:        session.activePool.map(c => ({...c})),
-    wordSnap:        JSON.parse(JSON.stringify(db.words[card.id] || {})),
-    correct,
-  }; */
 
   session.totalAnswers++;
   const maxDots = card.repsLeft + (card.repsLeft < (card.status==='new'||card.status==='learning'?3:1) ? 0 : 0);
@@ -2347,6 +2334,19 @@ function applyWordsFilters() {
     return display === currentWordFilter;
   });
   renderWordsList(filtered, 0);
+
+
+  console.log("currentWordFilter:", `"${currentWordFilter}"`);
+// ELEPHANT DEBUG
+const rawLearning = cards.filter(c => (db.words[c.id]||{}).status === 'learning');
+console.log("raw learning:", rawLearning.length);
+
+const filtered = cards.filter(c => {
+  const s = db.words[c.id]?.status || 'new';
+  const display = s === 'new' ? 'unknown' : s;
+  return display === currentWordFilter;
+});
+console.log("after filter:", filtered.length);
 }
 
 function renderWordsList(filtered, startIdx) {
@@ -2379,6 +2379,7 @@ function buildWordRow(card) {
   const rawStatus = w.status || 'new';
   const status = rawStatus === 'new' ? 'unknown' : rawStatus;
   const interval = w.interval || 0;
+  const daysSeen = (w.daysSeen || []).length;
   const pct = Math.min(100, Math.round(interval / 21 * 100));
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);';

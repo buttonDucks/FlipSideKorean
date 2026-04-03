@@ -451,10 +451,7 @@ select.input{appearance:none;-webkit-appearance:none;}
         </div>
       </div>
 
-      <!-- Undo — always visible below card area -->
-      <div style="text-align:center;margin-top:12px;">
-        <button id="undo-btn" onclick="undoLastAnswer()" style="font-size:12px;color:var(--text3);padding:6px 20px;border:1px solid var(--border2);border-radius:99px;background:var(--surface2);opacity:0.35;pointer-events:none;transition:opacity 0.2s;">↩ Undo last answer</button>
-      </div>
+      
 
       <!-- Session complete -->
       <div id="session-complete">
@@ -575,7 +572,7 @@ select.input{appearance:none;-webkit-appearance:none;}
 
       <div class="card" style="margin-bottom:12px;">
         <div class="section-label" style="margin-bottom:12px;">Daily goal</div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:8px;">EXP target to reach Gold star</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px;">Target exp to earn each day</div>
         <select class="input" id="daily-goal-select" onchange="saveDailyGoal()">
           <option value="100">100 exp (easy)</option>
           <option value="200">200 exp</option>
@@ -1171,215 +1168,217 @@ function updateSessionSelects() {
 }
 
 // ============================================================
-// SESSION
+// SESSION  —  SM-2 spaced repetition
 // ============================================================
+// Word record shape:
+//   { status, ease, interval, due, lapses, lastSeen, manuallyKnown }
+// status: 'new' | 'learning' | 'review' | 'known'
+// ease:     SM-2 E-factor (min 1.3, default 2.5)
+// interval: days until next review (1, 6, …)
+// due:      ISO date string — when to next show
+// lapses:   times forgotten after reaching review stage
+
+const SM2_EASE_DEFAULT = 2.5;
+const SM2_EASE_MIN     = 1.3;
+const SM2_EASY_BONUS   = 1.3;
+
+function srsRecord(cardId) {
+  if(!db.words[cardId]) db.words[cardId] = {};
+  const w = db.words[cardId];
+  if(!w.ease)     w.ease     = SM2_EASE_DEFAULT;
+  if(!w.interval) w.interval = 0;
+  if(!w.due)      w.due      = todayStr();
+  if(!w.lapses)   w.lapses   = 0;
+  if(!w.status)   w.status   = 'new';
+  return w;
+}
+
+// After a correct answer, advance SM-2 interval
+function sm2Correct(w) {
+  if(w.interval === 0)      w.interval = 1;
+  else if(w.interval === 1) w.interval = 6;
+  else                      w.interval = Math.round(w.interval * w.ease);
+  w.ease = Math.max(SM2_EASE_MIN, w.ease + 0.1);
+  w.due  = dateAddDays(todayStr(), w.interval);
+  if(w.status === 'new' || w.status === 'learning') w.status = 'review';
+  if(w.interval >= 21) w.status = 'known';
+}
+
+// After a wrong answer, reset to re-learning
+function sm2Wrong(w) {
+  w.ease     = Math.max(SM2_EASE_MIN, w.ease - 0.2);
+  w.interval = 1;
+  w.due      = todayStr();
+  if(w.status === 'review' || w.status === 'known') {
+    w.lapses++;
+    w.status = 'learning';
+  } else {
+    w.status = 'learning';
+  }
+}
+
+function dateAddDays(iso, n) {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function isDue(w) {
+  return !w.due || w.due <= todayStr();
+}
+
 let session = null;
 
 function getSelectedDecks() {
-  return db.decks.filter(d=>d.selected);
+  return db.decks.filter(d => d.selected);
 }
 
 function startSession(type) {
-  if(!db.decks.length) {
-    openModal('modal-no-decks');
-    return;
-  }
+  if(!db.decks.length) { openModal('modal-no-decks'); return; }
   const selectedDecks = getSelectedDecks();
   if(!selectedDecks.length) { showNotif('Select at least one deck first'); return; }
-  db.settings.hardMode = document.getElementById('toggle-hard').checked;
+
+  // Persist UI settings
+  db.settings.hardMode    = document.getElementById('toggle-hard').checked;
   db.settings.includeKnown = document.getElementById('toggle-known').checked;
   saveDB();
 
-  const size = db.settings.sessionSize;
-  const newCount = db.settings.newCards; // 0 = review only
-  const hardMode = db.settings.hardMode;
-  const includeKnown = db.settings.includeKnown;
+  const { sessionSize: size, newCards: newCount, hardMode, includeKnown } = db.settings;
+  const today = todayStr();
 
-  // Gather all cards from selected decks
-  let allCards = [];
-  selectedDecks.forEach(deck => {
+  // Gather all cards from selected decks with fresh SRS records
+  const allCards = [];
+  selectedDecks.forEach(deck =>
     deck.cards.forEach(card => {
-      allCards.push({...card, deckId: deck.id});
-    });
-  });
+      const w = srsRecord(card.id);
+      allCards.push({ ...card, deckId: deck.id, srStatus: w.status });
+    })
+  );
 
-  // Categorise
-  const learning = allCards.filter(c => (db.words[c.id]||{status:'unknown'}).status === 'learning');
-  const known = allCards.filter(c => (db.words[c.id]||{status:'unknown'}).status === 'known');
-  const unknown = allCards.filter(c => !db.words[c.id] || db.words[c.id].status === 'unknown');
+  // Partition
+  const due     = allCards.filter(c => (c.srStatus==='learning'||c.srStatus==='review') && isDue(db.words[c.id]));
+  const newCards = allCards.filter(c => c.srStatus==='new');
+  const knownDue = includeKnown
+    ? allCards.filter(c => c.srStatus==='known' && isDue(db.words[c.id]))
+    : [];
 
-  // Build session pool
-  let pool = [];
-  shuffle(learning);
-  shuffle(known);
-  shuffle(unknown);
+  // Build pool: due first (sorted by urgency = how overdue), then new, then known
+  due.sort((a, b) => (db.words[a.id].due||today) < (db.words[b.id].due||today) ? -1 : 1);
+  shuffle(newCards);
+  shuffle(knownDue);
 
-  // Add learning cards first
-  pool = pool.concat(learning.slice(0, size - newCount));
+  let pool = [
+    ...due.slice(0, size - Math.min(newCount, newCards.length)),
+    ...newCards.slice(0, newCount),
+  ].slice(0, size);
 
-  // Add new unknown cards
-  if(newCount > 0) {
-    pool = pool.concat(unknown.slice(0, newCount));
+  // Fill gaps with known if enabled
+  if(pool.length < size && knownDue.length) {
+    pool = pool.concat(knownDue.slice(0, size - pool.length));
   }
 
-  // Fill remaining with learning if short
-  if(pool.length < size) {
-    const remaining = learning.filter(c => !pool.find(p=>p.id===c.id));
-    pool = pool.concat(remaining.slice(0, size-pool.length));
-  }
-
-  // Add known cards (at most once per week, if toggled)
-  if(includeKnown) {
-    const today = todayStr();
-    const eligibleKnown = known.filter(c => {
-      const w = db.words[c.id];
-      if(!w) return false;
-      if(!w.lastSeenDate) return true;
-      const daysSince = Math.floor((new Date(today) - new Date(w.lastSeenDate)) / 86400000);
-      return daysSince >= 7;
-    });
-    shuffle(eligibleKnown);
-    const knownSlots = Math.max(0, Math.floor(size * 0.15));
-    pool = pool.concat(eligibleKnown.slice(0, knownSlots));
-  }
-
+  // Fallback: use whatever is available
   if(!pool.length) {
-    // Use whatever is available rather than blocking
-    pool = shuffle([...learning, ...(newCount>0?unknown:[]), ...(includeKnown?known:[])]).slice(0, size);
-    if(!pool.length) { showNotif('No cards available! Add cards to your decks first.'); return; }
-    showNotif('Starting with ' + pool.length + ' available cards');
+    pool = shuffle([...due, ...newCards, ...knownDue]).slice(0, size);
+    if(!pool.length) { showNotif('No cards available! Add cards or wait for reviews to become due.'); return; }
   }
-  pool = pool.slice(0, size);
 
-  // Apply difficulty weighting — cards with more wrong answers surface first
-  pool = buildWeightedPool(pool).slice(0, size);
+  // Session cards — new/learning need 3 correct reps; review/known need 1
+  const sessionCards = pool.map(c => ({
+    ...c,
+    status:   db.words[c.id].status,
+    repsLeft: (db.words[c.id].status === 'new' || db.words[c.id].status === 'learning') ? 3 : 1,
+    done:     false,
+  }));
 
-  // Apply confusion pair interleaving — similar cards appear near each other
-  pool = groupConfusionPairs(pool);
+  const totalReps = sessionCards.reduce((s, c) => s + c.repsLeft, 0);
 
-  // Build session state
   session = {
-    type,
     hardMode,
-    allCards: pool.map(c => ({
-      ...c,
-      status: (db.words[c.id]||{status:'unknown'}).status || 'unknown',
-      dots: 0,
-      attempts: 0,
-      done: false,
-    })),
-    activePool: [],
-    queue: [],
+    allCards:       sessionCards,
+    activePool:     [],
+    queue:          [...sessionCards],
     completedCount: 0,
-    totalDotsFilled: 0,
-    totalDotsNeeded: 0,
-    expEarned: 0,
-    correctCount: 0,
-    totalAnswers: 0,
+    totalReps,
+    repsFilledCount: 0,
+    expEarned:      0,
+    correctCount:   0,
+    totalAnswers:   0,
     currentCardIdx: null,
-    lastCardId: null,
-    recentCardIds: [],
-    cardAnswered: false,
-    lastUndo: null,
+    recentCardIds:  [],
+    cardAnswered:   false,
   };
 
-  // Calculate total dots needed for progress bar
-  session.totalDotsNeeded = pool.reduce((sum, c) => {
-    const isKnown = (db.words[c.id]||{status:'unknown'}).status === 'known';
-    return sum + (isKnown ? 1 : 3);
-  }, 0);
-
-  // Init active pool (up to 5)
-  session.queue = [...session.allCards];
-  while(session.activePool.length < 5 && session.queue.length) {
+  // Prime active pool (up to 5)
+  while(session.activePool.length < 5 && session.queue.length)
     session.activePool.push(session.queue.shift());
-  }
 
   showScreen('session');
-  document.getElementById('session-complete').style.display='none';
-  document.getElementById('session-card-area').style.display='block';
+  document.getElementById('session-complete').style.display = 'none';
+  document.getElementById('session-card-area').style.display = 'block';
   renderSessionCard();
 }
 
 function pickNextActiveCard() {
-  const available = session.activePool.filter(c=>!c.done);
+  const available = session.activePool.filter(c => !c.done);
   if(!available.length) return null;
-  // Avoid repeating the last 2 cards if pool allows
-  const recent = session.recentCardIds || [];
-  let candidates = available.filter(c => !recent.includes(c.id));
-  if(!candidates.length) candidates = available;
-  return candidates[Math.floor(Math.random()*candidates.length)];
+  const recent = session.recentCardIds;
+  const candidates = available.filter(c => !recent.includes(c.id));
+  const pool = candidates.length ? candidates : available;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function renderSessionCard() {
   const card = pickNextActiveCard();
   if(!card) { showSessionComplete(); return; }
+
   session.currentCardIdx = session.activePool.indexOf(card);
-  session.lastCardId = card.id;
-  // Track last 2 shown to avoid repeat
-  session.recentCardIds = [card.id, ...(session.recentCardIds||[])].slice(0,2);
+  session.recentCardIds  = [card.id, ...session.recentCardIds].slice(0, 2);
 
-  // Update progress — based on total dots filled across all cards
-  document.getElementById('session-counter').textContent = session.completedCount+'/'+session.allCards.length;
-  const pct = session.totalDotsNeeded > 0 ? (session.totalDotsFilled / session.totalDotsNeeded * 100) : 0;
-  document.getElementById('session-progress-bar').style.width = pct+'%';
+  // Progress bar
+  const pct = session.totalReps > 0 ? (session.repsFilledCount / session.totalReps * 100) : 0;
+  document.getElementById('session-progress-bar').style.width = pct + '%';
+  document.getElementById('session-counter').textContent = session.completedCount + '/' + session.allCards.length;
 
-  // Card content
-  const isKnown = card.status === 'known';
-  const hard = session.hardMode;
-
-  // Reset flip and answered state
+  // Reset card UI
   document.getElementById('card-flipper').classList.remove('flipped');
-  document.getElementById('answer-btns').style.display='none';
-  const undoBtn = document.getElementById('undo-btn');
-  if(undoBtn) { undoBtn.style.opacity='0.4'; undoBtn.style.pointerEvents='none'; }
+  document.getElementById('answer-btns').style.display = 'none';
   session.cardAnswered = false;
-  session.lastUndo = null;
 
-  if(hard) {
-    // English side first
-    document.getElementById('front-label').textContent='English';
-    document.getElementById('card-kr-main').textContent=card.english||'';
-    document.getElementById('card-kr-sentence').textContent=card.englishSentence||'';
-    document.getElementById('card-kr-main').style.fontFamily='var(--ui-font)';
-    document.getElementById('card-kr-main').style.fontSize='24px';
-    document.getElementById('back-label').textContent='Korean';
-    document.getElementById('card-en-main').textContent=card.korean||'';
-    document.getElementById('card-en-sentence').textContent=card.koreanSentence||'';
-    document.getElementById('card-en-main').style.fontFamily='var(--korean-font)';
-    document.getElementById('card-en-main').style.fontSize='36px';
-    // Always speak Korean regardless of which side is showing
-    currentCardKorean = card.korean || '';
-    currentCardKoreanSentence = card.koreanSentence || '';
-  } else {
-    document.getElementById('front-label').textContent='Korean';
-    document.getElementById('card-kr-main').textContent=card.korean||'';
-    document.getElementById('card-kr-sentence').textContent=card.koreanSentence||'';
-    document.getElementById('card-kr-main').style.fontFamily='var(--korean-font)';
-    document.getElementById('card-kr-main').style.fontSize='42px';
-    document.getElementById('back-label').textContent='English';
-    document.getElementById('card-en-main').textContent=card.english||'';
-    document.getElementById('card-en-sentence').textContent=card.englishSentence||'';
-    document.getElementById('card-en-main').style.fontFamily='var(--display-font)';
-    document.getElementById('card-en-main').style.fontSize='26px';
-    currentCardKorean = card.korean || '';
-    currentCardKoreanSentence = card.koreanSentence || '';
-  }
 
-  // Image
+  // Populate card faces
+  const hard = session.hardMode;
+  const front = hard ? { main: card.english||'', sub: card.englishSentence||'', label: 'English', font: 'var(--ui-font)',      size: '24px' }
+                     : { main: card.korean||'',  sub: card.koreanSentence||'',  label: 'Korean',  font: 'var(--korean-font)', size: '42px' };
+  const back  = hard ? { main: card.korean||'',  sub: card.koreanSentence||'',  label: 'Korean',  font: 'var(--korean-font)', size: '36px' }
+                     : { main: card.english||'', sub: card.englishSentence||'', label: 'English', font: 'var(--display-font)', size: '26px' };
+
+  const set = (id, val) => document.getElementById(id).textContent = val;
+  set('front-label',      front.label);
+  set('card-kr-main',     front.main);
+  set('card-kr-sentence', front.sub);
+  set('back-label',       back.label);
+  set('card-en-main',     back.main);
+  set('card-en-sentence', back.sub);
+  document.getElementById('card-kr-main').style.fontFamily = front.font;
+  document.getElementById('card-kr-main').style.fontSize   = front.size;
+  document.getElementById('card-en-main').style.fontFamily = back.font;
+  document.getElementById('card-en-main').style.fontSize   = back.size;
+
+  currentCardKorean         = card.korean || '';
+  currentCardKoreanSentence = card.koreanSentence || '';
+
   const imgEl = document.getElementById('card-image');
-  if(card.image) { imgEl.src=card.image; imgEl.style.display='block'; }
-  else { imgEl.style.display='none'; }
+  if(card.image) { imgEl.src = card.image; imgEl.style.display = 'block'; }
+  else imgEl.style.display = 'none';
 
-  // Known badge
-  document.getElementById('known-card-badge').style.display = isKnown ? 'block' : 'none';
+  document.getElementById('known-card-badge').style.display = card.status==='known'||card.status==='review' ? 'block' : 'none';
 
-  // Dots
-  const maxDots = isKnown ? 1 : 3;
-  renderDots('card-dots', card.dots, maxDots);
-  renderDots('card-dots-back', card.dots, maxDots);
+  const maxDots = card.status === 'new' || card.status === 'learning' ? 2 : 1;
+  const filled  = maxDots - card.repsLeft;
+  renderDots('card-dots',      filled, maxDots);
+  renderDots('card-dots-back', filled, maxDots);
 
-  // Auto-read Korean when card enters (Korean→English mode only)
   if(!hard && db.settings.autoRead !== false) {
     window.speechSynthesis.cancel();
     setTimeout(() => speakKorean(), 100);
@@ -1388,26 +1387,21 @@ function renderSessionCard() {
 
 function renderDots(elId, filled, max) {
   const el = document.getElementById(elId);
-  el.innerHTML='';
+  el.innerHTML = '';
   const complete = filled >= max;
-  for(let i=0;i<max;i++){
-    const d=document.createElement('div');
-    d.className='dot'+(max===1?' single':'')+(i<filled?' filled':'')+(complete?' complete':'');
+  for(let i = 0; i < max; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (max===1?' single':'') + (i<filled?' filled':'') + (complete?' complete':'');
     el.appendChild(d);
   }
 }
 
 function revealCard() {
   const flipper = document.getElementById('card-flipper');
-  const isFlipped = flipper.classList.contains('flipped');
-  if(!isFlipped) {
+  if(!flipper.classList.contains('flipped')) {
     flipper.classList.add('flipped');
-    setTimeout(() => {
-      document.getElementById('answer-btns').style.display='grid';
-      session.cardAnswered = false;
-    }, 300);
+    setTimeout(() => { document.getElementById('answer-btns').style.display = 'grid'; session.cardAnswered = false; }, 300);
   } else if(!session.cardAnswered) {
-    // Flip back only before answering
     flipper.classList.remove('flipped');
   }
 }
@@ -1417,134 +1411,72 @@ function answerCard(correct) {
   if(!card || card.done) return;
   session.cardAnswered = true;
 
-  // Save undo snapshot before mutating
+  // Snapshot for undo
+  /*
   session.lastUndo = {
-    cardId: card.id,
-    cardIdx: session.currentCardIdx,
-    dots: card.dots,
-    attempts: card.attempts,
-    done: card.done,
-    completedCount: session.completedCount,
-    totalDotsFilled: session.totalDotsFilled,
-    expEarned: session.expEarned,
-    correctCount: session.correctCount,
-    totalAnswers: session.totalAnswers,
-    queueSnapshot: [...session.queue],
-    poolSnapshot: session.activePool.map(c=>({...c})),
+    cardIdx:         session.currentCardIdx,
+    repsLeft:        card.repsLeft,
+    done:            card.done,
+    completedCount:  session.completedCount,
+    repsFilledCount: session.repsFilledCount,
+    expEarned:       session.expEarned,
+    correctCount:    session.correctCount,
+    totalAnswers:    session.totalAnswers,
+    queueSnap:       [...session.queue],
+    poolSnap:        session.activePool.map(c => ({...c})),
+    wordSnap:        JSON.parse(JSON.stringify(db.words[card.id] || {})),
     correct,
-  };
+  }; */
 
   session.totalAnswers++;
-
-  const isKnown = card.status === 'known';
-  const maxDots = isKnown ? 1 : 3;
+  const maxDots = card.repsLeft + (card.repsLeft < (card.status==='new'||card.status==='learning'?2:1) ? 0 : 0);
 
   if(correct) {
     session.correctCount++;
-    card.attempts++;
-    card.dots = Math.min(card.dots+1, maxDots);
-    session.totalDotsFilled++;
+    card.repsLeft--;
+    session.repsFilledCount++;
+    const exp = card.status==='known' ? 5 : (card.repsLeft <= 0 ? 10 : 8);
+    session.expEarned += session.hardMode ? Math.round(exp * 1.5) : exp;
 
-    // Exp calculation
-    let exp = 0;
-    if(isKnown) {
-      exp = 5;
-    } else {
-      exp = card.attempts <= 3 ? 10 : 5;
-    }
-    if(session.hardMode) exp = Math.round(exp * 1.5);
-    session.expEarned += exp;
-
-    // Check completion
-    if(card.dots >= maxDots) {
+    if(card.repsLeft <= 0) {
       card.done = true;
       session.completedCount++;
-
-      // Update word record
-      updateWordRecord(card, true);
-
-      // Pull next from queue
+      updateWordRecord(card.id, true);
       if(session.queue.length) {
-        const next = session.queue.shift();
-        const idx = session.activePool.indexOf(card);
-        session.activePool[idx] = next;
+        session.activePool[session.currentCardIdx] = session.queue.shift();
       }
     }
   } else {
-    const prevDots = card.dots;
-    card.dots = Math.max(0, card.dots-1);
-    if(prevDots > 0) session.totalDotsFilled = Math.max(0, session.totalDotsFilled-1);
-    card.attempts++;
-    recordWrongAnswer(card.id);
+    if(card.repsLeft < (card.status==='new'||card.status==='learning' ? 2 : 1)) {
+      card.repsLeft++; // reset rep progress
+      session.repsFilledCount = Math.max(0, session.repsFilledCount - 1);
+    }
+    updateWordRecord(card.id, false);
   }
 
-  // Update dots immediately so user sees the change before next card
-  renderDots('card-dots', card.dots, maxDots);
-  renderDots('card-dots-back', card.dots, maxDots);
+  const curMax  = card.status==='new'||card.status==='learning' ? 2 : 1;
+  const curFill = curMax - card.repsLeft;
+  renderDots('card-dots',      Math.max(0, curFill), curMax);
+  renderDots('card-dots-back', Math.max(0, curFill), curMax);
 
-  // Enable undo button
-  const undoBtn = document.getElementById('undo-btn');
-  if(undoBtn) { undoBtn.style.opacity='1'; undoBtn.style.pointerEvents='all'; }
 
-  // Brief pause so dots are visible, then next card
-  setTimeout(()=>{
+
+  setTimeout(() => {
     document.getElementById('card-flipper').classList.remove('flipped');
-    document.getElementById('answer-btns').style.display='none';
+    document.getElementById('answer-btns').style.display = 'none';
     setTimeout(renderSessionCard, 150);
   }, 200);
 }
 
-function undoLastAnswer() {
-  const u = session.lastUndo;
-  if(!u) return;
 
-  // Restore pool and queue from snapshot
-  session.activePool = u.poolSnapshot;
-  session.queue = u.queueSnapshot;
-  session.completedCount = u.completedCount;
-  session.totalDotsFilled = u.totalDotsFilled;
-  session.expEarned = u.expEarned;
-  session.correctCount = u.correctCount;
-  session.totalAnswers = u.totalAnswers;
-  session.lastUndo = null;
-  session.cardAnswered = false;
+ 
 
-  // Disable undo button
-  const undoBtn = document.getElementById('undo-btn');
-  if(undoBtn) { undoBtn.style.opacity='0.4'; undoBtn.style.pointerEvents='none'; }
-  document.getElementById('answer-btns').style.display='none';
-
-  // Re-show the same card unflipped
-  session.currentCardIdx = u.cardIdx;
-  session.lastCardId = null;
-  document.getElementById('card-flipper').classList.remove('flipped');
-  renderDots('card-dots', u.dots, u.dots===1 && session.activePool[u.cardIdx]?.status==='known' ? 1 : 3);
-  renderDots('card-dots-back', u.dots, u.dots===1 && session.activePool[u.cardIdx]?.status==='known' ? 1 : 3);
-
-  // Update progress bar
-  const pct = session.totalDotsNeeded > 0 ? (session.totalDotsFilled / session.totalDotsNeeded * 100) : 0;
-  document.getElementById('session-progress-bar').style.width = pct+'%';
-  document.getElementById('session-counter').textContent = session.completedCount+'/'+session.allCards.length;
-}
-
-function updateWordRecord(card, correct) {
-  const today = todayStr();
-  if(!db.words[card.id]) {
-    db.words[card.id] = {
-      status: 'learning',
-      recallDays: [],
-      lastSeenDate: null,
-      manuallyKnown: false,
-    };
-  }
-  const w = db.words[card.id];
-  if(correct) {
-    w.lastSeenDate = today;
-    if(!w.recallDays.includes(today)) w.recallDays.push(today);
-    if(w.recallDays.length >= 21 && w.status !== 'known') {
-      w.status = 'known';
-    }
-  }
+function updateWordRecord(cardId, correct) {
+  const w = srsRecord(cardId);
+  w.lastSeen = todayStr();
+  if(correct) sm2Correct(w);
+  else        sm2Wrong(w);
+  db.words[cardId] = w;
   saveDB();
 }
 
@@ -1552,56 +1484,51 @@ function showSessionComplete() {
   const bar = document.getElementById('session-progress-bar');
   bar.style.transition = 'none';
   bar.style.width = '100%';
-  document.getElementById('session-card-area').style.display='none';
-  document.getElementById('session-complete').style.display='block';
+  document.getElementById('session-card-area').style.display = 'none';
+  document.getElementById('session-complete').style.display = 'block';
 
-  // Update daily exp & streak
   const prevExp = db.todayExp;
-  db.todayExp += session.expEarned;
-  db.totalExp = (db.totalExp||0) + session.expEarned;
+  db.todayExp   = (db.todayExp  || 0) + session.expEarned;
+  db.totalExp   = (db.totalExp  || 0) + session.expEarned;
   if(!db.todayStats) db.todayStats = {reviewed:0, learned:0, correct:0, totalAnswers:0};
-  db.todayStats.reviewed += session.completedCount;
-  db.todayStats.learned += session.allCards.filter(c => c.status === 'unknown' && c.done).length;
-  db.todayStats.correct += session.correctCount;
+  db.todayStats.reviewed     += session.completedCount;
+  db.todayStats.learned      += session.allCards.filter(c => (c.status==='new'||c.status==='learning') && c.done).length;
+  db.todayStats.correct      += session.correctCount;
   db.todayStats.totalAnswers += session.totalAnswers;
-  const today = todayStr();
 
-  // First study today?
+  const today = todayStr();
   if(db.streak.lastStudyDate !== today) {
     db.streak.current++;
     if(db.streak.current > db.streak.best) db.streak.best = db.streak.current;
     db.streak.lastStudyDate = today;
   }
 
-  // Check diamond for freeze
-  const newStar = getStarForExp(db.todayExp);
+  const newStar  = getStarForExp(db.todayExp);
   const prevStar = getStarForExp(prevExp);
-  if(newStar==='diamond' && prevStar!=='diamond' && db.streak.freezes < 3) {
+  if(newStar === 'diamond' && prevStar !== 'diamond' && db.streak.freezes < 3) {
     db.streak.freezes++;
     showNotif('🧊 Streak freeze earned!');
   }
 
-  // Save to history
-  const existing = db.streak.history.findIndex(h=>h.date===today);
-  if(existing>=0) db.streak.history[existing].star = newStar;
-  else db.streak.history.push({date:today, star:newStar});
+  const existing = db.streak.history.findIndex(h => h.date === today);
+  if(existing >= 0) db.streak.history[existing].star = newStar;
+  else              db.streak.history.push({date: today, star: newStar});
 
   saveDB();
 
-  document.getElementById('complete-xp').textContent = '+'+session.expEarned;
-  const accuracy = session.totalAnswers ? Math.round(session.correctCount/session.totalAnswers*100) : 0;
+  document.getElementById('complete-xp').textContent = '+' + session.expEarned;
+  const accuracy  = session.totalAnswers ? Math.round(session.correctCount / session.totalAnswers * 100) : 0;
   const isPerfect = session.totalAnswers > 0 && session.correctCount === session.totalAnswers;
 
-  document.getElementById('complete-grid').innerHTML=`
-    <div class="complete-stat"><div class="val">${session.completedCount}</div><div class="lbl">Cards completed</div></div>
+  document.getElementById('complete-grid').innerHTML = `
+    <div class="complete-stat"><div class="val">${session.completedCount}</div><div class="lbl">Completed</div></div>
     <div class="complete-stat"><div class="val">${accuracy}%</div><div class="lbl">Accuracy</div></div>
-    <div class="complete-stat"><div class="val">${db.todayExp}</div><div class="lbl">Total exp today</div></div>
+    <div class="complete-stat"><div class="val">${db.todayExp}</div><div class="lbl">Exp today</div></div>
     <div class="complete-stat"><div class="val">${db.streak.current}d</div><div class="lbl">Streak</div></div>
   `;
 
   const starLabels = {diamond:'Diamond',gold:'Gold',silver:'Silver',bronze:'Bronze',ice:'Ice',empty:'No star'};
-  const starEl = document.getElementById('complete-star-earned');
-  starEl.innerHTML=`
+  document.getElementById('complete-star-earned').innerHTML = `
     ${isPerfect ? `<div style="display:inline-block;background:linear-gradient(135deg,var(--gold),var(--diamond));color:#1a1a2e;font-size:13px;font-weight:500;padding:6px 18px;border-radius:99px;margin-bottom:10px;letter-spacing:0.04em;">✨ Perfect score!</div><br>` : ''}
     <div class="star-icon ${starClass(newStar)}" style="width:48px;height:48px;font-size:24px;margin:0 auto;">${starEmoji(newStar)}</div>
     <div style="font-size:13px;color:var(--text2);margin-top:6px;">${starLabels[newStar]||newStar} day</div>
@@ -1609,16 +1536,13 @@ function showSessionComplete() {
 }
 
 function endSession() {
-  // If session complete screen is showing, just go home
   if(document.getElementById('session-complete').style.display === 'block') {
     showScreen('home'); return;
   }
-  // If actively in a session, show quit confirmation
   if(session && session.totalAnswers > 0) {
     pendingNavTarget = 'home';
     openModal('modal-quit-session'); return;
   }
-  // No answers yet — just exit silently
   session = null;
   showScreen('home');
 }
@@ -1626,6 +1550,8 @@ function endSession() {
 function restartSession() {
   if(session) startSession('learn');
 }
+
+
 
 // ============================================================
 // DECKS
@@ -2398,17 +2324,21 @@ function applyWordsFilters() {
     if(tag && !(deck.tags||[]).includes(tag)) return;
     deck.cards.forEach(c => cards.push({...c, deckName: deck.name}));
   });
-  const total = cards.length;
-  const known = cards.filter(c => (db.words[c.id]||{}).status === 'known').length;
+  const total    = cards.length;
+  const known    = cards.filter(c => (db.words[c.id]||{}).status === 'known').length;
   const learning = cards.filter(c => (db.words[c.id]||{}).status === 'learning').length;
-  const unknown = total - known - learning;
+  const unknown  = total - known - learning;
   const summary = document.getElementById('drilldown-status-summary');
   if(summary) summary.innerHTML = `
     <div style="padding:4px 10px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:12px;color:var(--green);">${known} known</div>
     <div style="padding:4px 10px;border-radius:99px;background:var(--accent-dim);border:1px solid rgba(124,109,250,0.3);font-size:12px;color:var(--accent2);">${learning} learning</div>
     <div style="padding:4px 10px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);font-size:12px;color:var(--text3);">${unknown} new</div>
   `;
-  const filtered = cards.filter(c => ((db.words[c.id]||{}).status||'unknown') === currentWordFilter);
+  const filtered = cards.filter(c => {
+    const s = db.words[c.id]?.status || 'new';
+    const display = s === 'new' ? 'unknown' : s;
+    return display === currentWordFilter;
+  });
   renderWordsList(filtered, 0);
 }
 
@@ -2439,9 +2369,10 @@ function renderWordsList(filtered, startIdx) {
 
 function buildWordRow(card) {
   const w = db.words[card.id] || {};
-  const status = w.status || 'unknown';
-  const days = w.recallDays?.length || 0;
-  const pct = Math.min(100, Math.round(days / 21 * 100));
+  const rawStatus = w.status || 'new';
+  const status = rawStatus === 'new' ? 'unknown' : rawStatus;
+  const interval = w.interval || 0;
+  const pct = Math.min(100, Math.round(interval / 21 * 100));
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);';
   div.innerHTML = `
@@ -2450,9 +2381,9 @@ function buildWordRow(card) {
       <div style="font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${card.english}</div>
     </div>
     ${status === 'learning' ? `
-    <div style="text-align:right;min-width:60px;">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">${days}/21</div>
-      <div class="progress-bar-wrap" style="width:60px;"><div class="progress-bar" style="width:${pct}%;"></div></div>
+    <div style="text-align:right;min-width:64px;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:3px;">${interval}d interval</div>
+      <div class="progress-bar-wrap" style="width:64px;"><div class="progress-bar" style="width:${pct}%;"></div></div>
     </div>` : ''}
     <button onclick="openWordMenu('${card.id}');event.stopPropagation();" style="padding:6px 8px;color:var(--text3);font-size:20px;flex-shrink:0;line-height:1;cursor:pointer;">⋯</button>
   `;
@@ -2464,7 +2395,8 @@ function openWordMenu(cardId) {
   for(const deck of db.decks) { const c = deck.cards.find(c => c.id === cardId); if(c) { card = c; break; } }
   if(!card) return;
   const w = db.words[cardId] || {};
-  const status = w.status || 'unknown';
+  const rawStatus = w.status || 'new';
+  const status = rawStatus === 'new' ? 'unknown' : rawStatus;
   document.getElementById('word-menu-kr').textContent = card.korean;
   document.getElementById('word-menu-en').textContent = card.english;
   document.getElementById('word-menu-badge').innerHTML = `<span class="badge badge-${status}">${status}</span>`;
@@ -2486,9 +2418,13 @@ function openWordMenu(cardId) {
 }
 
 function setWordStatus(cardId, status) {
-  if(!db.words[cardId]) db.words[cardId] = {status:'unknown', recallDays:[], lastSeenDate:null};
-  db.words[cardId].status = status;
-  if(status === 'known') db.words[cardId].manuallyKnown = true;
+  const w = srsRecord(cardId);
+  // Map UI status labels to SRS statuses
+  const map = { unknown: 'new', learning: 'learning', known: 'known' };
+  w.status = map[status] || status;
+  if(w.status === 'known') { w.manuallyKnown = true; w.interval = 21; w.due = dateAddDays(todayStr(), 21); }
+  if(w.status === 'new')   { w.interval = 0; w.due = todayStr(); }
+  if(w.status === 'learning') { w.interval = 1; w.due = todayStr(); }
   saveDB();
   applyWordsFilters();
 }
@@ -2536,68 +2472,6 @@ if('speechSynthesis' in window) {
 // ============================================================
 
 // Track wrong answers per card across sessions
-function recordWrongAnswer(cardId) {
-  if(!db.words[cardId]) db.words[cardId] = {status:'unknown', recallDays:[], lastSeenDate:null};
-  db.words[cardId].wrongCount = (db.words[cardId].wrongCount || 0) + 1;
-  db.words[cardId].lastWrong = todayStr();
-  saveDB();
-}
-
-// Build weighted pool — cards with more wrong answers appear more often
-function buildWeightedPool(cards) {
-  const weighted = [];
-  cards.forEach(card => {
-    const w = db.words[card.id] || {};
-    const wrongs = w.wrongCount || 0;
-    // Base weight 1, +1 per wrong answer up to 4 extra slots
-    const weight = 1 + Math.min(wrongs, 4);
-    for(let i = 0; i < weight; i++) weighted.push(card);
-  });
-  shuffle(weighted);
-  // Deduplicate while preserving weighted order
-  const seen = new Set();
-  return weighted.filter(c => seen.has(c.id) ? false : seen.add(c.id));
-}
-
-// Detect confusion pairs — cards that share similar Korean syllables or English meanings
-function groupConfusionPairs(cards) {
-  // Build similarity clusters by shared syllable or English word overlap
-  const groups = [];
-  const assigned = new Set();
-
-  cards.forEach((a, i) => {
-    if(assigned.has(a.id)) return;
-    const pair = [a];
-    cards.forEach((b, j) => {
-      if(i === j || assigned.has(b.id)) return;
-      if(areSimilar(a, b)) pair.push(b);
-    });
-    if(pair.length > 1) pair.forEach(c => assigned.add(c.id));
-    groups.push(pair);
-  });
-
-  // Interleave: flatten groups so similar cards appear near each other
-  const result = [];
-  const maxRound = Math.max(...groups.map(g => g.length));
-  for(let r = 0; r < maxRound; r++) {
-    groups.forEach(g => { if(g[r]) result.push(g[r]); });
-  }
-  return result;
-}
-
-function areSimilar(a, b) {
-  // Check shared Korean opening syllable (first char)
-  if(a.korean && b.korean && a.korean[0] === b.korean[0]) return true;
-  // Check English word overlap
-  const aWords = (a.english||'').toLowerCase().split(/\W+/).filter(w => w.length > 3);
-  const bWords = (b.english||'').toLowerCase().split(/\W+/).filter(w => w.length > 3);
-  if(aWords.some(w => bWords.includes(w))) return true;
-  return false;
-}
-
-// ============================================================
-// NOTIFICATIONS
-// ============================================================
 function saveNotifSettings() {
   const enabled = document.getElementById('toggle-notif').checked;
   const time = document.getElementById('notif-time').value;

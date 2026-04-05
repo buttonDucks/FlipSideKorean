@@ -1,10 +1,6 @@
 const CACHE = 'korean-app-v2';
 const ASSETS = ['./manifest.json'];
 
-
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; // or auth if needed
-
 const firebaseConfig = {
   apiKey: "AIzaSyBJ384xc2Hdd3LrASHTW9J4JtNQVURugZ0",
   authDomain: "flipside-koreanstudy.firebaseapp.com",

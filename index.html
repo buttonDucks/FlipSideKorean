@@ -657,9 +657,8 @@ select.input{appearance:none;-webkit-appearance:none;}
         <div class="section-label" style="margin-bottom:12px;">Account</div>
         <div id="account-signed-out">
           <div style="font-size:15px;color:var(--text);margin-bottom:4px;">Sign in to save your place across devices</div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:12px;">Use email/password or Google. Your cloud save sync can be connected next once the account layer is in place.</div>
-          <button class="btn btn-primary btn-full" onclick="openAuthModal('signin')" style="margin-bottom:8px;">Sign in or create account</button>
-          <button class="btn btn-secondary btn-full" onclick="openAuthModal('signup')">Create account</button>
+          <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:12px;">Use email/password or Google. Decks, words, streak, settings, and session results sync once you sign in. Images and audio stay local for now.</div>
+          <button class="btn btn-primary btn-full" onclick="openAuthModal('signin')">Sign in or create account</button>
         </div>
         <div id="account-signed-in" style="display:none;">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;">
@@ -667,9 +666,8 @@ select.input{appearance:none;-webkit-appearance:none;}
               <div style="font-size:15px;color:var(--text);margin-bottom:4px;">Signed in</div>
               <div style="font-size:13px;color:var(--accent2);word-break:break-word;" id="account-email">—</div>
             </div>
-            <div style="padding:5px 10px;border-radius:99px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:11px;color:var(--green);">Live</div>
           </div>
-          <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:12px;">Authentication is active. Cloud save wiring is the next step.</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:12px;">Cloud sync is on for study data. Images and audio stay local on this device for now.</div>
           <button class="btn btn-secondary btn-full" onclick="openAuthModal('signin')" style="margin-bottom:8px;">Manage account</button>
           <button class="btn btn-secondary btn-full" onclick="signOutAccount()" style="color:var(--red);border-color:rgba(248,113,113,0.3);">Sign out</button>
         </div>
@@ -862,6 +860,22 @@ select.input{appearance:none;-webkit-appearance:none;}
   </div>
 </div>
 
+<!-- Account Prompt Modal -->
+<div class="modal-overlay" id="modal-auth-prompt" style="align-items:center;">
+  <div class="modal" style="border-radius:var(--radius);max-width:320px;margin:0 auto;padding:22px 20px;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="width:56px;height:56px;border-radius:18px;background:var(--accent-dim);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent2);font-size:24px;margin:0 auto 12px;">✦</div>
+      <h2 style="margin-bottom:8px;">Save your progress?</h2>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;">Sign in or create an account to sync decks, words, streak, settings, and session results, or continue as a guest if you want to keep using local-only saves on this device.</div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text3);line-height:1.6;">
+      Guest mode keeps your data only in this browser on this device.
+    </div>
+    <button class="btn btn-primary btn-full" onclick="openAuthFromPrompt()" style="margin-bottom:8px;">Sign in or create account</button>
+    <button class="btn btn-secondary btn-full" onclick="continueAsGuest()">Continue as guest</button>
+  </div>
+</div>
+
 <!-- Create Tag Modal -->
 <div class="modal-overlay" id="modal-create-folder">
   <div class="modal">
@@ -927,11 +941,42 @@ select.input{appearance:none;-webkit-appearance:none;}
 // DATA LAYER
 // ============================================================
 const DB_KEY = 'korean_app_v1';
+const AUTH_PROMPT_DISMISSED_KEY = 'korean_app_auth_prompt_dismissed_v1';
+const MAX_DECKS = 15;
+const MAX_CARDS_PER_DECK = 1000;
+const MAX_TAGS = 10;
+const CLOUD_SCHEMA_VERSION = 1;
+const CARD_CHUNK_SIZE = 200;
+const WORD_CHUNK_SIZE = 250;
+
+function clonePlainData(value, fallback = null) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch(e) {
+    return fallback;
+  }
+}
+
+function normalizeDbShape(source) {
+  const base = defaultDB();
+  const data = source && typeof source === 'object' ? source : {};
+  return {
+    ...base,
+    ...data,
+    decks: Array.isArray(data.decks) ? data.decks : [],
+    folders: Array.isArray(data.folders) ? data.folders : [],
+    words: data.words && typeof data.words === 'object' ? data.words : {},
+    streak: { ...base.streak, ...(data.streak || {}) },
+    settings: { ...base.settings, ...(data.settings || {}) },
+    todayStats: { ...base.todayStats, ...(data.todayStats || {}) },
+    _meta: { ...base._meta, ...(data._meta || {}) },
+  };
+}
 
 function loadDB() {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return normalizeDbShape(JSON.parse(raw));
   } catch(e) {}
   return defaultDB();
 }
@@ -954,18 +999,351 @@ function defaultDB() {
       hardMode: false,
       includeKnown: false,
     },
+    folders: [],
     todayExp: 0,
     totalExp: 0,
     lastResetDate: null,
     todayStats: {reviewed:0, learned:0, correct:0, totalAnswers:0},
+    _meta: {
+      updatedAt: 0,
+      lastCloudSyncAt: 0,
+      mediaLocalOnly: true,
+    },
   };
 }
 
-function saveDB() {
+function saveDB(options = {}) {
+  db = normalizeDbShape(db);
+  if(!options.preserveUpdatedAt) db._meta.updatedAt = Date.now();
   localStorage.setItem(DB_KEY, JSON.stringify(db));
+  if(!options.skipCloudSync) scheduleCloudSync();
 }
 
 let db = loadDB();
+let cloudSyncTimer = null;
+let cloudSyncInProgress = false;
+let cloudSyncPending = false;
+let applyingCloudState = false;
+
+function hasAnyStudyData(state) {
+  const data = normalizeDbShape(state);
+  return data.decks.length > 0 || Object.keys(data.words).length > 0 || (data.totalExp || 0) > 0;
+}
+
+function getCloudStateDoc(uid) {
+  return window.firebaseApi.doc(window.firebaseDb, 'users', uid, 'appData', 'state');
+}
+
+function getUserDecksCollection(uid) {
+  return window.firebaseApi.collection(window.firebaseDb, 'users', uid, 'decks');
+}
+
+function getDeckDoc(uid, deckId) {
+  return window.firebaseApi.doc(window.firebaseDb, 'users', uid, 'decks', deckId);
+}
+
+function getDeckChunkCollection(uid, deckId) {
+  return window.firebaseApi.collection(window.firebaseDb, 'users', uid, 'decks', deckId, 'cardChunks');
+}
+
+function getDeckChunkDoc(uid, deckId, chunkId) {
+  return window.firebaseApi.doc(window.firebaseDb, 'users', uid, 'decks', deckId, 'cardChunks', chunkId);
+}
+
+function getWordChunkCollection(uid) {
+  return window.firebaseApi.collection(window.firebaseDb, 'users', uid, 'wordChunks');
+}
+
+function getWordChunkDoc(uid, chunkId) {
+  return window.firebaseApi.doc(window.firebaseDb, 'users', uid, 'wordChunks', chunkId);
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for(let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+function chunkWordEntries(words, size) {
+  const entries = Object.entries(words || {});
+  const chunks = [];
+  for(let i = 0; i < entries.length; i += size) {
+    chunks.push(Object.fromEntries(entries.slice(i, i + size)));
+  }
+  return chunks;
+}
+
+function stripMediaForCloud(state) {
+  const clean = normalizeDbShape(clonePlainData(state, defaultDB()));
+  clean.decks = clean.decks.map(deck => ({
+    ...deck,
+    cards: (deck.cards || []).map(card => {
+      const { image, audio, ...rest } = card;
+      return rest;
+    }),
+  }));
+  clean._meta = { ...clean._meta, mediaLocalOnly: true };
+  return clean;
+}
+
+function mergeLocalOnlyMedia(targetState, localState) {
+  const merged = normalizeDbShape(clonePlainData(targetState, defaultDB()));
+  const local = normalizeDbShape(localState);
+  const mediaByCardId = new Map();
+
+  local.decks.forEach(deck => {
+    (deck.cards || []).forEach(card => {
+      if(card.image || card.audio) mediaByCardId.set(card.id, { image: card.image || null, audio: card.audio || null });
+    });
+  });
+
+  merged.decks = merged.decks.map(deck => ({
+    ...deck,
+    cards: (deck.cards || []).map(card => {
+      const media = mediaByCardId.get(card.id);
+      return media ? { ...card, ...(media.image ? { image: media.image } : {}), ...(media.audio ? { audio: media.audio } : {}) } : card;
+    }),
+  }));
+
+  return merged;
+}
+
+function buildCloudBundle(state) {
+  const clean = stripMediaForCloud(state);
+  const updatedAtMs = clean._meta.updatedAt || Date.now();
+  const decks = clean.decks.map((deck, sortOrder) => {
+    const cards = (deck.cards || []).map(card => ({ ...card }));
+    const chunks = chunkArray(cards, CARD_CHUNK_SIZE).map((chunkCards, index) => ({
+      deckId: deck.id,
+      id: `chunk_${index}`,
+      index,
+      cards: chunkCards,
+    }));
+    const { cards: _cards, ...deckMeta } = deck;
+    return {
+      meta: {
+        ...deckMeta,
+        sortOrder,
+        cardCount: cards.length,
+        cardChunkCount: chunks.length,
+      },
+      chunks,
+    };
+  });
+  const wordChunks = chunkWordEntries(clean.words, WORD_CHUNK_SIZE).map((chunkWords, index) => ({
+    id: `chunk_${index}`,
+    index,
+    words: chunkWords,
+  }));
+
+  return {
+    updatedAtMs: clean._meta.updatedAt || Date.now(),
+    stateDoc: {
+      schemaVersion: CLOUD_SCHEMA_VERSION,
+      updatedAtMs,
+      folders: clean.folders,
+      streak: clean.streak,
+      settings: clean.settings,
+      todayExp: clean.todayExp,
+      totalExp: clean.totalExp,
+      lastResetDate: clean.lastResetDate,
+      todayStats: clean.todayStats,
+    },
+    decks,
+    wordChunks,
+  };
+}
+
+async function uploadCloudBundle(uid, bundle) {
+  const api = window.firebaseApi;
+  const batch = api.writeBatch(window.firebaseDb);
+
+  batch.set(getCloudStateDoc(uid), bundle.stateDoc);
+
+  const deckSnap = await api.getDocs(getUserDecksCollection(uid));
+  const existingDeckIds = new Set(deckSnap.docs.map(docSnap => docSnap.id));
+  const nextDeckIds = new Set(bundle.decks.map(deck => deck.meta.id));
+
+  for(const deck of bundle.decks) {
+    batch.set(getDeckDoc(uid, deck.meta.id), deck.meta);
+    const chunkSnap = await api.getDocs(getDeckChunkCollection(uid, deck.meta.id));
+    const nextChunkIds = new Set(deck.chunks.map(chunk => chunk.id));
+
+    deck.chunks.forEach(chunk => {
+      batch.set(getDeckChunkDoc(uid, deck.meta.id, chunk.id), {
+        index: chunk.index,
+        cards: chunk.cards,
+      });
+    });
+
+    chunkSnap.docs.forEach(docSnap => {
+      if(!nextChunkIds.has(docSnap.id)) batch.delete(docSnap.ref);
+    });
+  }
+
+  for(const deckId of existingDeckIds) {
+    if(nextDeckIds.has(deckId)) continue;
+    const chunkSnap = await api.getDocs(getDeckChunkCollection(uid, deckId));
+    chunkSnap.docs.forEach(docSnap => batch.delete(docSnap.ref));
+    batch.delete(getDeckDoc(uid, deckId));
+  }
+
+  const existingWordSnap = await api.getDocs(getWordChunkCollection(uid));
+  const nextWordChunkIds = new Set(bundle.wordChunks.map(chunk => chunk.id));
+  bundle.wordChunks.forEach(chunk => {
+    batch.set(getWordChunkDoc(uid, chunk.id), {
+      index: chunk.index,
+      words: chunk.words,
+    });
+  });
+  existingWordSnap.docs.forEach(docSnap => {
+    if(!nextWordChunkIds.has(docSnap.id)) batch.delete(docSnap.ref);
+  });
+
+  await batch.commit();
+}
+
+async function fetchCloudState(uid, localState) {
+  const api = window.firebaseApi;
+  const stateSnap = await api.getDoc(getCloudStateDoc(uid));
+  if(!stateSnap.exists()) return null;
+
+  const stateData = stateSnap.data() || {};
+  const deckSnap = await api.getDocs(getUserDecksCollection(uid));
+  const deckMeta = deckSnap.docs
+    .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+  const chunkSnaps = await Promise.all(deckMeta.map(deck => api.getDocs(getDeckChunkCollection(uid, deck.id))));
+  const decks = deckMeta.map((deck, index) => {
+    const chunks = chunkSnaps[index].docs
+      .map(docSnap => docSnap.data() || {})
+      .sort((a, b) => (a.index || 0) - (b.index || 0));
+    const cards = chunks.flatMap(chunk => Array.isArray(chunk.cards) ? chunk.cards : []);
+    const { cardCount, cardChunkCount, sortOrder, ...deckMetaOnly } = deck;
+    return { ...deckMetaOnly, cards };
+  });
+
+  const wordSnap = await api.getDocs(getWordChunkCollection(uid));
+  const words = {};
+  wordSnap.docs
+    .map(docSnap => docSnap.data() || {})
+    .sort((a, b) => (a.index || 0) - (b.index || 0))
+    .forEach(chunk => Object.assign(words, chunk.words || {}));
+
+  const cloudState = mergeLocalOnlyMedia({
+    decks,
+    words,
+    folders: stateData.folders || [],
+    streak: stateData.streak || defaultDB().streak,
+    settings: stateData.settings || defaultDB().settings,
+    todayExp: stateData.todayExp || 0,
+    totalExp: stateData.totalExp || 0,
+    lastResetDate: stateData.lastResetDate || null,
+    todayStats: stateData.todayStats || defaultDB().todayStats,
+    _meta: {
+      updatedAt: stateData.updatedAtMs || 0,
+      lastCloudSyncAt: stateData.updatedAtMs || 0,
+      mediaLocalOnly: true,
+    },
+  }, localState);
+
+  return normalizeDbShape(cloudState);
+}
+
+function refreshVisibleScreen() {
+  const active = document.querySelector('.screen.active');
+  if(!active) return;
+  if(active.id === 'screen-session') return;
+  if(active.id === 'screen-home') renderHome();
+  if(active.id === 'screen-decks') renderDecks();
+  if(active.id === 'screen-words') renderWords(currentWordFilter || 'learning');
+  if(active.id === 'screen-streak') renderStreak();
+  if(active.id === 'screen-settings') renderSettings();
+}
+
+function applyCloudState(cloudState) {
+  applyingCloudState = true;
+  db = normalizeDbShape(cloudState);
+  saveDB({ skipCloudSync: true, preserveUpdatedAt: true });
+  applyingCloudState = false;
+  refreshVisibleScreen();
+}
+
+async function syncDbToCloud(reason = 'autosave') {
+  if(applyingCloudState || !authReady || !authUser || !window.firebaseReady || !window.firebaseDb || !window.firebaseApi) return;
+  if(cloudSyncInProgress) {
+    cloudSyncPending = true;
+    return;
+  }
+
+  cloudSyncInProgress = true;
+  try {
+    const bundle = buildCloudBundle(db);
+    db._meta.updatedAt = bundle.updatedAtMs;
+    await uploadCloudBundle(authUser.uid, bundle);
+    db._meta.lastCloudSyncAt = bundle.updatedAtMs;
+    saveDB({ skipCloudSync: true, preserveUpdatedAt: true });
+  } catch (err) {
+    console.error('Cloud sync failed', err);
+    if(reason !== 'autosave') showNotif('Cloud sync failed');
+  } finally {
+    cloudSyncInProgress = false;
+    if(cloudSyncPending) {
+      cloudSyncPending = false;
+      syncDbToCloud('autosave');
+    }
+  }
+}
+
+function scheduleCloudSync(delay = 700) {
+  if(applyingCloudState || !authReady || !authUser || !window.firebaseReady || !window.firebaseDb || !window.firebaseApi) return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => syncDbToCloud('autosave'), delay);
+}
+
+async function syncLocalAndCloudState(user) {
+  if(!user || !window.firebaseReady || !window.firebaseDb || !window.firebaseApi) return;
+
+  const localState = normalizeDbShape(clonePlainData(db, defaultDB()));
+  const localUpdatedAt = localState._meta.updatedAt || 0;
+  const lastCloudSyncAt = localState._meta.lastCloudSyncAt || 0;
+  const cloudState = await fetchCloudState(user.uid, localState);
+
+  if(!cloudState) {
+    if(hasAnyStudyData(localState)) {
+      await syncDbToCloud('initial-upload');
+      showNotif('Local data uploaded to cloud');
+    } else {
+      const bundle = buildCloudBundle(localState);
+      db._meta.updatedAt = bundle.updatedAtMs;
+      await uploadCloudBundle(user.uid, bundle);
+      db._meta.lastCloudSyncAt = bundle.updatedAtMs;
+      saveDB({ skipCloudSync: true, preserveUpdatedAt: true });
+    }
+    return;
+  }
+
+  const cloudUpdatedAt = cloudState._meta.updatedAt || 0;
+
+  if(!lastCloudSyncAt) {
+    applyCloudState(cloudState);
+    return;
+  }
+
+  if(localUpdatedAt > lastCloudSyncAt && localUpdatedAt >= cloudUpdatedAt) {
+    await syncDbToCloud('local-newer');
+    return;
+  }
+
+  if(cloudUpdatedAt > lastCloudSyncAt) {
+    applyCloudState(cloudState);
+    return;
+  }
+
+  db._meta.lastCloudSyncAt = cloudUpdatedAt || lastCloudSyncAt;
+  saveDB({ skipCloudSync: true, preserveUpdatedAt: true });
+}
 
 // ============================================================
 // DATE UTILS
@@ -1631,7 +2009,7 @@ function updateWordRecord(cardId, correct) {
   if(correct) sm2Correct(w);
   else        sm2Wrong(w);
   db.words[cardId] = w;
-  saveDB();
+  saveDB({ skipCloudSync: true });
 }
 
 function showSessionComplete() {
@@ -1794,6 +2172,30 @@ function getSelectedTags(containerId) {
     .map(b => b.dataset.tag);
 }
 
+function ensureDeckLimit() {
+  if(db.decks.length >= MAX_DECKS) {
+    showNotif(`Deck limit reached (${MAX_DECKS} max)`);
+    return false;
+  }
+  return true;
+}
+
+function ensureTagLimit() {
+  if((db.folders || []).length >= MAX_TAGS) {
+    showNotif(`Tag limit reached (${MAX_TAGS} max)`);
+    return false;
+  }
+  return true;
+}
+
+function ensureDeckCardLimit(cardCount) {
+  if(cardCount > MAX_CARDS_PER_DECK) {
+    showNotif(`Deck limit reached (${MAX_CARDS_PER_DECK} cards max)`);
+    return false;
+  }
+  return true;
+}
+
 function renderDecks() {
   const list = document.getElementById('deck-list');
   list.innerHTML='';
@@ -1852,6 +2254,7 @@ function renderDecks() {
 
 function openCreateFolder() {
   window._newTagTargetContainer = null;
+  if(!ensureTagLimit()) return;
   document.getElementById('folder-name-input').value='';
   openModal('modal-create-folder');
 }
@@ -1891,6 +2294,7 @@ function saveFolder() {
   const name = document.getElementById('folder-name-input').value.trim();
   if(!name){ showNotif('Enter a tag name'); return; }
   if(!db.folders) db.folders=[];
+  if(!ensureTagLimit()) return;
   if(db.folders.find(f=>f.name===name)){ showNotif('Tag already exists'); return; }
   db.folders.push({id:genId(), name});
   saveDB();
@@ -1906,6 +2310,7 @@ function saveFolder() {
 }
 
 function openCreateDeck() {
+  if(!ensureDeckLimit()) return;
   document.getElementById('import-deck-name').value='';
   document.getElementById('manual-deck-name').value='';
   document.getElementById('csv-preview').style.display='none';
@@ -1946,6 +2351,7 @@ function addManualCard() {
 }
 
 function saveManualDeck() {
+  if(!ensureDeckLimit()) return;
   const name = document.getElementById('manual-deck-name').value.trim();
   if(!name) { showNotif('Enter a deck name'); return; }
   const cards = [];
@@ -1963,6 +2369,7 @@ function saveManualDeck() {
     }
   });
   if(!cards.length) { showNotif('Add at least one card'); return; }
+  if(!ensureDeckCardLimit(cards.length)) return;
   const deck = {
     id: genId(),
     name,
@@ -2192,9 +2599,11 @@ function swapImportFields(side) {
 }
 
 function saveImportedDeck() {
+  if(!ensureDeckLimit()) return;
   const name = document.getElementById('import-deck-name').value.trim();
   if(!name) { showNotif('Enter a deck name'); return; }
   if(!pendingImportCards.length) { showNotif('No cards found'); return; }
+  if(!ensureDeckCardLimit(pendingImportCards.length)) return;
   const deck = {
     id: genId(),
     name,
@@ -2250,6 +2659,9 @@ function renderEditDeckCards(deck) {
 }
 
 function addCardToEditDeck() {
+  const deck = db.decks.find(d=>d.id===editingDeckId);
+  if(!deck) return;
+  if(!ensureDeckCardLimit((deck.cards || []).length + 1)) return;
   openEditCard(editingDeckId, -1);
 }
 
@@ -2371,6 +2783,7 @@ function saveEditCard() {
     audio,
   };
 
+  if(editingCardIdx < 0 && !ensureDeckCardLimit((deck.cards || []).length + 1)) return;
   if(editingCardIdx>=0) deck.cards[editingCardIdx]=card;
   else deck.cards.push(card);
 
@@ -2746,6 +3159,22 @@ let authReady = false;
 let authListenerBound = false;
 let authInitQueued = false;
 
+function hasDismissedAuthPrompt() {
+  return localStorage.getItem(AUTH_PROMPT_DISMISSED_KEY) === '1';
+}
+
+function dismissAuthPrompt() {
+  localStorage.setItem(AUTH_PROMPT_DISMISSED_KEY, '1');
+}
+
+function maybeShowAuthPrompt() {
+  if(authUser || hasDismissedAuthPrompt()) return;
+  const promptModal = document.getElementById('modal-auth-prompt');
+  if(!promptModal || promptModal.classList.contains('open')) return;
+  dismissAuthPrompt();
+  openModal('modal-auth-prompt');
+}
+
 function renderSettings() {
   renderAccountUI();
 }
@@ -2775,11 +3204,11 @@ function renderAccountUI() {
     signedOut.style.display = 'none';
     signedIn.style.display = 'block';
     email.textContent = authUser.email || 'Google account';
-    note.textContent = 'Signed in successfully. Account auth is live; cloud save is the next layer to connect.';
+    note.textContent = 'Signed in. Decks, words, streak, settings, and session results now sync to the cloud. Images and audio stay local for now.';
   } else {
     signedOut.style.display = 'block';
     signedIn.style.display = 'none';
-    note.textContent = 'Ready to sign in. Your local study data stays on this device until cloud sync is connected.';
+    note.textContent = 'Ready to sign in. Until then, your study data stays local to this device.';
   }
 }
 
@@ -2814,8 +3243,8 @@ function setAuthMode(mode, el) {
   const isSignup = authUiMode === 'signup';
   document.getElementById('auth-modal-title').textContent = isSignup ? 'Create account' : 'Sign in';
   document.getElementById('auth-modal-subtitle').textContent = isSignup
-    ? 'Create a FlipSide account with the same look and feel as the app.'
-    : 'Sign in to access your account and get ready for cloud sync.';
+    ? 'Create a FlipSide account to sync your study data across devices.'
+    : 'Sign in to sync your study data across devices.';
   document.getElementById('auth-submit-btn').textContent = isSignup ? 'Create account' : 'Sign in';
   document.getElementById('auth-confirm-wrap').style.display = isSignup ? 'block' : 'none';
   document.getElementById('auth-password').autocomplete = isSignup ? 'new-password' : 'current-password';
@@ -2835,6 +3264,18 @@ function openAuthModal(mode = 'signin') {
     setAuthMessage(`Signed in as ${authUser.email || 'Google account'}. You can sign in with a different account if you want to switch.`);
   }
   openModal('modal-auth');
+}
+
+function openAuthFromPrompt() {
+  dismissAuthPrompt();
+  closeModal('modal-auth-prompt');
+  openAuthModal('signin');
+}
+
+function continueAsGuest() {
+  dismissAuthPrompt();
+  closeModal('modal-auth-prompt');
+  showNotif('Continuing as guest. Data will stay local to this device.');
 }
 
 async function submitAuthForm() {
@@ -2934,10 +3375,23 @@ function initAuthUI() {
   }
 
   authListenerBound = true;
-  window.firebaseApi.onAuthStateChanged(window.firebaseAuth, user => {
+  window.firebaseApi.onAuthStateChanged(window.firebaseAuth, async user => {
     authUser = user || null;
     authReady = true;
     renderAccountUI();
+    clearTimeout(cloudSyncTimer);
+    if(authUser) {
+      closeModal('modal-auth-prompt');
+      try {
+        await syncLocalAndCloudState(authUser);
+      } catch (err) {
+        console.error('Initial cloud sync failed', err);
+        showNotif('Could not sync cloud data');
+      }
+      renderAccountUI();
+    } else {
+      setTimeout(maybeShowAuthPrompt, 250);
+    }
   });
   renderAccountUI();
 }

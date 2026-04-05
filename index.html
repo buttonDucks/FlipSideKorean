@@ -1203,6 +1203,7 @@ function updateSessionSelects() {
 // interval: days until next review (1, 6, …)
 // due:      ISO date string — when to next show
 // lapses:   times forgotten after reaching review stage
+// daysSeen: List of days seen (and marked correct)
 
 const SM2_EASE_DEFAULT = 2.5;
 const SM2_EASE_MIN     = 1.3;
@@ -1235,10 +1236,7 @@ function sm2Correct(w) {
   if (w.daysSeen.length >= 21) {
     w.status = 'known';
   }
-  else{
-    w.status = 'learning';
-    //ADDED THIS BIT MYSELF MAY BE WRONG ELEPHANT
-  }
+  
 }
 
 // After a wrong answer, reset to re-learning

@@ -1,17 +1,7 @@
 const CACHE = 'korean-app-v2';
 const ASSETS = ['./manifest.json'];
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBJ384xc2Hdd3LrASHTW9J4JtNQVURugZ0",
-  authDomain: "flipside-koreanstudy.firebaseapp.com",
-  projectId: "flipside-koreanstudy",
-  storageBucket: "flipside-koreanstudy.firebasestorage.app",
-  messagingSenderId: "802613311835",
-  appId: "1:802613311835:web:e330d5fea38bf720c0c27e"
-};
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
